@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语翻译练习网站</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>英语翻译练习</h1>
+            <div class="timer" id="timer">00:00:00</div>
+        </header>
+
+        <!-- 文件上传区域 -->
+    <section id="upload-section" class="active">
+        <h2>上传翻译材料</h2>
+        
+        <!-- DeepSeek API 配置 -->
+        <div class="api-config">
+            <h3>DeepSeek API 配置</h3>
+            <div class="api-input-container">
+                <input type="password" id="deepseek-api-key" placeholder="请输入DeepSeek API密钥" />
+                <button id="save-api-key">保存密钥</button>
+            </div>
+            <p class="hint">需要DeepSeek API密钥来进行真实的翻译质量评估</p>
+        </div>
+        
+        <div class="upload-container">
+            <input type="file" id="word-file" accept=".docx,.doc" />
+            <button id="upload-btn">上传并解析</button>
+            <p class="hint">请上传包含中文分句的Word文档</p>
+        </div>
+    </section>
+
+        <!-- 文章选择区域 -->
+        <section id="passage-selection" class="hidden">
+            <h2>选择要翻译的文章</h2>
+            <div class="passage-list" id="passage-list">
+                <!-- 文章列表将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 功能选择区域 -->
+        <section id="mode-selection" class="hidden">
+            <h2>选择练习模式</h2>
+            <div class="mode-buttons">
+                <button id="sentence-mode-btn" class="mode-btn">分句练习</button>
+                <button id="passage-mode-btn" class="mode-btn">整篇练习</button>
+            </div>
+        </section>
+
+        <!-- 分句练习区域 -->
+        <section id="sentence-practice" class="hidden">
+            <h2>分句翻译练习</h2>
+            <div class="sentence-container">
+                <div class="chinese-sentence" id="current-chinese"></div>
+                <input type="text" id="english-input" placeholder="请输入英文翻译..." autocomplete="off">
+                <div class="progress">
+                    <span id="current-sentence">1</span>/<span id="total-sentences">0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 整篇练习区域 -->
+        <section id="passage-practice" class="hidden">
+            <h2>整篇翻译练习</h2>
+            <div class="passage-container">
+                <div class="chinese-passage" id="chinese-passage"></div>
+                <textarea id="passage-input" placeholder="请输入英文翻译..." rows="10"></textarea>
+            </div>
+        </section>
+
+        <!-- 结果展示区域 -->
+        <section id="result-section" class="hidden">
+            <h2>翻译结果与评分</h2>
+            <div class="result-container">
+                <div class="result-item">
+                    <h3>用时</h3>
+                    <p id="result-time">00:00:00</p>
+                </div>
+                <div class="result-item">
+                    <h3>评分</h3>
+                    <p id="result-score">0/100</p>
+                </div>
+                <div class="result-item">
+                    <h3>语法错误</h3>
+                    <ul id="grammar-errors"></ul>
+                </div>
+                <div class="result-item">
+                    <h3>翻译文本</h3>
+                    <div id="translated-text"></div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="back-to-select">返回选择</button>
+                <button id="upload-new">上传新文档</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- 日志面板切换按钮 -->
+    <button id="toggle-log-btn" title="显示/隐藏日志">📋</button>
+</body>
+</html>

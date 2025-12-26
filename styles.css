@@ -1,0 +1,600 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 头部样式 */
+header {
+    background-color: #2196F3;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    font-size: 2.5em;
+    font-weight: 600;
+}
+
+.timer {
+    font-size: 1.8em;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 5px;
+    min-width: 120px;
+    text-align: center;
+}
+
+/* 通用区域样式 */
+section {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    transition: all 0.3s ease;
+}
+
+section h2 {
+    color: #2196F3;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    border-bottom: 2px solid #2196F3;
+    padding-bottom: 10px;
+}
+
+/* 隐藏/显示类 */
+.hidden {
+    display: none;
+}
+
+.active {
+    display: block;
+}
+
+/* API配置区域 */
+.api-config {
+    background-color: #f0f8ff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid #e3f2fd;
+}
+
+.api-config h3 {
+    color: #1976D2;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.api-input-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+#deepseek-api-key {
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1em;
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+#save-api-key {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#save-api-key:hover {
+    background-color: #45a049;
+}
+
+/* 文件上传区域 */
+.upload-container {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+#word-file {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 2px dashed #ddd;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 500px;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+#word-file:hover {
+    border-color: #2196F3;
+}
+
+#upload-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 15px;
+}
+
+#upload-btn:hover {
+    background-color: #0b7dda;
+}
+
+.hint {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* 文章选择区域 */
+.passage-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.passage-item {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.passage-item:hover {
+    border-color: #2196F3;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.passage-item h3 {
+    color: #2196F3;
+    margin-bottom: 10px;
+    font-size: 1.3em;
+}
+
+.passage-preview {
+    color: #666;
+    margin-bottom: 15px;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.select-passage-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.select-passage-btn:hover {
+    background-color: #0b7dda;
+}
+
+/* 模式选择区域 */
+.mode-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.mode-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 20px 40px;
+    font-size: 1.3em;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.mode-btn:hover {
+    background-color: #0b7dda;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 新增返回按钮样式 */
+.action-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 20px;
+}
+
+/* 分句练习区域 */
+.sentence-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.chinese-sentence {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-left: 5px solid #2196F3;
+}
+
+#english-input {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2em;
+    font-family: 'Times New Roman', serif;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s ease;
+}
+
+#english-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+}
+
+.progress {
+    text-align: center;
+    font-size: 1.1em;
+    color: #666;
+    font-weight: bold;
+}
+
+/* 整篇练习区域 */
+.passage-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.chinese-passage {
+    font-size: 1.2em;
+    line-height: 1.8;
+    color: #333;
+    background-color: #f9f9f9;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 5px solid #2196F3;
+    white-space: pre-line;
+}
+
+#passage-input {
+    width: 100%;
+    padding: 20px;
+    font-size: 1.2em;
+    font-family: 'Times New Roman', serif;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    resize: vertical;
+    min-height: 300px;
+    transition: border-color 0.3s ease;
+}
+
+#passage-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+}
+
+/* 结果展示区域 */
+.result-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.result-item {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.result-item h3 {
+    color: #2196F3;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.result-item p {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #333;
+}
+
+#grammar-errors {
+    list-style-type: none;
+}
+
+#grammar-errors li {
+    padding: 8px 15px;
+    margin-bottom: 8px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 5px;
+    color: #856404;
+}
+
+/* 详细错误分析样式 */
+.sentence-error-header {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #2196F3;
+    margin: 15px 0 5px 0;
+    padding: 5px 10px;
+    background-color: #e3f2fd;
+    border-radius: 5px;
+}
+
+.sentence-translation {
+    font-size: 1em;
+    color: #666;
+    margin: 5px 0 10px 20px;
+    font-style: italic;
+}
+
+.sentence-errors {
+    list-style-type: none;
+    margin: 10px 0 20px 20px;
+    padding-left: 0;
+}
+
+.sentence-errors li {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+.sentence-errors li strong {
+    color: #856404;
+}
+
+#translated-text {
+    font-size: 1.1em;
+    line-height: 1.7;
+    white-space: pre-line;
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.action-buttons {
+    text-align: center;
+    margin-top: 40px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.action-buttons button {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.action-buttons button:hover {
+    background-color: #0b7dda;
+}
+
+/* 评分系统状态显示 */
+.scoring-system-status {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+/* 日志容器 */
+.log-container {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    width: 300px;
+    height: 200px;
+    background-color: #333;
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px;
+    z-index: 1000;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: none;
+}
+
+.log-container h4 {
+    margin: 0 0 10px 0;
+    color: #fff;
+    font-size: 14px;
+}
+
+.log-content {
+    height: 150px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.log-item {
+    margin-bottom: 5px;
+    padding: 2px 0;
+}
+
+.log-info {
+    color: #2196F3;
+}
+
+.log-warning {
+    color: #FFC107;
+}
+
+.log-error {
+    color: #F44336;
+}
+
+/* 日志按钮 */
+#toggle-log-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 999;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+#toggle-log-btn:hover {
+    background-color: #0b7dda;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    .timer {
+        font-size: 1.5em;
+    }
+    
+    section {
+        padding: 20px;
+    }
+    
+    .mode-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .mode-btn {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .chinese-sentence {
+        font-size: 1.3em;
+        padding: 15px;
+    }
+    
+    .chinese-passage {
+        font-size: 1.1em;
+        padding: 20px;
+    }
+    
+    #english-input,
+    #passage-input {
+        font-size: 1.1em;
+        padding: 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 1.8em;
+    }
+    
+    section {
+        padding: 15px;
+    }
+    
+    .chinese-sentence {
+        font-size: 1.2em;
+    }
+    
+    .chinese-passage {
+        font-size: 1em;
+    }
+}
