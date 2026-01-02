@@ -1,0 +1,22 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+debug.log
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# 操作系统
+Thumbs.db
+.DS_Store

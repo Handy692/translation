@@ -5,6 +5,151 @@ let currentSentenceIndex = 0;
 let startTime = null;
 let timerInterval = null;
 let userTranslations = [];
+let selectedPassages = []; // 存储已选择过的文章索引
+let currentPassageIndex = 0;
+
+// PWA安装相关变量
+let deferredPrompt = null;
+let installAppBtn = null;
+let passages = [
+    // 默认测试文章 1
+    "这是第一篇测试文章的内容。这篇文章包含多个句子，用于测试分句练习模式和PDF生成功能。\n\n今天天气很好，阳光明媚，适合外出活动。\n\n学习英语翻译需要不断练习，掌握词汇和语法知识。\n\n通过翻译练习，可以提高语言表达能力和跨文化交流能力。\n\n希望这篇测试文章能够帮助您了解应用的功能和使用方法。",
+    // 默认测试文章 2
+    "这是第二篇测试文章的内容，用于测试整篇练习模式。\n\n这篇文章的内容更长，包含更多的段落和句子结构。\n\n在整篇练习模式下，用户需要一次性翻译完整的文章。\n\n这种模式可以帮助用户提高整体翻译能力和上下文理解能力。\n\n通过不断练习，可以逐渐掌握翻译技巧，提高翻译质量。\n\n这篇文章的内容涵盖了不同的主题和语言结构，适合进行全面的翻译练习。\n\n希望您能够通过这篇文章的练习，提高自己的翻译水平和语言能力。"
+];
+
+// 翻译历史数据存储模块
+const TranslationHistory = {
+    // 存储键名
+    STORAGE_KEYS: {
+        VERSIONS: 'translationHistoryVersions',
+        FILES: 'translationHistoryFiles'
+    },
+    
+    // 生成唯一ID
+    generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    },
+    
+    // 获取历史版本数据
+    getHistoryVersions() {
+        try {
+            const versions = localStorage.getItem(this.STORAGE_KEYS.VERSIONS);
+            return versions ? JSON.parse(versions) : [];
+        } catch (error) {
+            console.error('Error getting history versions:', error);
+            return [];
+        }
+    },
+    
+    // 保存历史版本数据
+    saveHistoryVersions(versions) {
+        try {
+            localStorage.setItem(this.STORAGE_KEYS.VERSIONS, JSON.stringify(versions));
+            return true;
+        } catch (error) {
+            console.error('Error saving history versions:', error);
+            return false;
+        }
+    },
+    
+    // 添加历史版本
+    addHistoryVersion(versionData) {
+        const versions = this.getHistoryVersions();
+        const newVersion = {
+            id: this.generateId(),
+            timestamp: Date.now(),
+            ...versionData
+        };
+        versions.push(newVersion);
+        return this.saveHistoryVersions(versions);
+    },
+    
+    // 删除历史版本
+    deleteHistoryVersion(versionId) {
+        const versions = this.getHistoryVersions();
+        const updatedVersions = versions.filter(v => v.id !== versionId);
+        return this.saveHistoryVersions(updatedVersions);
+    },
+    
+    // 清空所有历史版本
+    clearAllHistoryVersions() {
+        return this.saveHistoryVersions([]);
+    },
+    
+    // 获取历史文件数据
+    getHistoryFiles() {
+        try {
+            const files = localStorage.getItem(this.STORAGE_KEYS.FILES);
+            return files ? JSON.parse(files) : [];
+        } catch (error) {
+            console.error('Error getting history files:', error);
+            return [];
+        }
+    },
+    
+    // 保存历史文件数据
+    saveHistoryFiles(files) {
+        try {
+            localStorage.setItem(this.STORAGE_KEYS.FILES, JSON.stringify(files));
+            return true;
+        } catch (error) {
+            console.error('Error saving history files:', error);
+            return false;
+        }
+    },
+    
+    // 添加历史文件
+    addHistoryFile(fileData) {
+        const files = this.getHistoryFiles();
+        const newFile = {
+            id: this.generateId(),
+            timestamp: Date.now(),
+            ...fileData
+        };
+        files.push(newFile);
+        return this.saveHistoryFiles(files);
+    },
+    
+    // 删除历史文件
+    deleteHistoryFile(fileId) {
+        const files = this.getHistoryFiles();
+        const updatedFiles = files.filter(f => f.id !== fileId);
+        return this.saveHistoryFiles(updatedFiles);
+    },
+    
+    // 清空所有历史文件
+    clearAllHistoryFiles() {
+        return this.saveHistoryFiles([]);
+    },
+    
+    // 导出历史数据
+    exportHistoryData() {
+        return {
+            versions: this.getHistoryVersions(),
+            files: this.getHistoryFiles(),
+            exportDate: new Date().toISOString()
+        };
+    },
+    
+    // 导入历史数据
+    importHistoryData(historyData) {
+        if (historyData.versions && Array.isArray(historyData.versions)) {
+            this.saveHistoryVersions(historyData.versions);
+        }
+        
+        if (historyData.files && Array.isArray(historyData.files)) {
+            this.saveHistoryFiles(historyData.files);
+        }
+        
+        return true;
+    }
+};
+
+// 文本切分相关变量
+let sentenceSplits = null; // 存储两种切分规则的结果
+let currentSplitType = 'byLine'; // 当前使用的切分类型（byLine或byPeriod）
+let shouldShowMenu = false; // 是否需要显示下拉菜单
 
 // DOM元素
 const uploadSection = document.getElementById('upload-section');
@@ -23,6 +168,15 @@ const englishInput = document.getElementById('english-input');
 const passageInput = document.getElementById('passage-input');
 const backToSelectBtn = document.getElementById('back-to-select');
 const uploadNewBtn = document.getElementById('upload-new');
+const backToPassageBtn = document.getElementById('back-to-passage');
+
+// 下拉菜单相关DOM元素
+const sentenceModeDropdown = document.getElementById('sentence-mode-dropdown');
+const dropdownOptions = document.querySelectorAll('.dropdown-option');
+
+// 练习模式选择相关DOM元素
+const practiceModeSelector = document.getElementById('practice-mode-selector');
+const practiceModeSelect = document.getElementById('practice-mode');
 
 // 导航按钮
 const prevSentenceBtn = document.getElementById('prev-sentence-btn');
@@ -30,16 +184,20 @@ const nextSentenceBtn = document.getElementById('next-sentence-btn');
 const completeTranslationBtn = document.getElementById('complete-translation-btn');
 const passageCompleteBtn = document.getElementById('passage-complete-btn');
 const downloadPdfBtn = document.getElementById('download-pdf-btn');
+const wordbookBtn = document.getElementById('wordbook-btn');
 
 // DeepSeek API 相关元素
 const deepseekApiKey = document.getElementById('deepseek-api-key');
 const saveApiKeyBtn = document.getElementById('save-api-key');
 
-// 新增文章选择区域元素
-const backToPassageBtn = document.createElement('button');
-backToPassageBtn.textContent = '返回文章选择';
-backToPassageBtn.id = 'back-to-passage';
-backToPassageBtn.className = 'action-btn';
+// 单词本相关元素 - 只保留必要的元素
+const totalWordsEl = document.getElementById('total-words');
+
+// 全局变量 - 单词本
+let wordbook = JSON.parse(localStorage.getItem('wordbook')) || [];
+let selectedText = '';
+let selectedWordData = null;
+let currentView = 'main';
 
 const timer = document.getElementById('timer');
 const currentChinese = document.getElementById('current-chinese');
@@ -52,29 +210,77 @@ const resultScore = document.getElementById('result-score');
 const grammarErrors = document.getElementById('grammar-errors');
 const translatedText = document.getElementById('translated-text');
 
+// 状态管理
+let appState = {
+    passages: [],
+    currentPassageIndex: 0,
+    sentenceSplits: null,
+    currentSplitType: 'byLine',
+    shouldShowMenu: false,
+    selectedPassages: [],
+    userTranslations: [],
+    currentSentenceIndex: 0
+};
+
+// 保存状态到localStorage
+function saveAppState() {
+    try {
+        localStorage.setItem('appState', JSON.stringify(appState));
+        console.log('状态保存成功');
+    } catch (error) {
+        console.error('状态保存失败:', error);
+        alert('状态保存失败，请检查浏览器存储设置\n\n错误详情:\n' + error.message);
+    }
+}
+
+// 从localStorage加载状态
+function loadAppState() {
+    const savedState = localStorage.getItem('appState');
+    if (savedState) {
+        appState = JSON.parse(savedState);
+        passages = appState.passages;
+        currentPassageIndex = appState.currentPassageIndex;
+        sentenceSplits = appState.sentenceSplits;
+        currentSplitType = appState.currentSplitType;
+        shouldShowMenu = appState.shouldShowMenu;
+        selectedPassages = appState.selectedPassages;
+        userTranslations = appState.userTranslations;
+        currentSentenceIndex = appState.currentSentenceIndex;
+        currentMode = appState.currentMode || '';
+    }
+}
+
+// 初始化状态
+loadAppState();
+
 // 初始化事件监听器
 function initEventListeners() {
     // 主题切换相关事件监听
     initThemeToggle();
-    uploadBtn.addEventListener('click', handleFileUpload);
-    sentenceModeBtn.addEventListener('click', startSentenceMode);
-    passageModeBtn.addEventListener('click', startPassageMode);
-    backToSelectBtn.addEventListener('click', backToSelection);
-    backToPassageBtn.addEventListener('click', backToPassageSelection);
-    uploadNewBtn.addEventListener('click', uploadNewFile);
-    englishInput.addEventListener('keypress', handleSentenceInput);
-    englishInput.addEventListener('keydown', handleSentenceKeyDown);
-    passageInput.addEventListener('keypress', handlePassageInput);
+    
+    // 条件性添加事件监听器，确保元素存在
+    if (uploadBtn) uploadBtn.addEventListener('click', handleFileUpload);
+    if (sentenceModeBtn) sentenceModeBtn.addEventListener('click', startSentenceMode);
+    if (passageModeBtn) passageModeBtn.addEventListener('click', startPassageMode);
+    if (backToSelectBtn) backToSelectBtn.addEventListener('click', backToSelection);
+    if (backToPassageBtn) backToPassageBtn.addEventListener('click', backToPassageSelection);
+    if (uploadNewBtn) uploadNewBtn.addEventListener('click', uploadNewFile);
+    if (englishInput) englishInput.addEventListener('keypress', handleSentenceInput);
+    if (englishInput) englishInput.addEventListener('keydown', handleSentenceKeyDown);
+    if (passageInput) passageInput.addEventListener('keypress', handlePassageInput);
+    
+    // 练习模式切换事件监听
+    if (practiceModeSelect) practiceModeSelect.addEventListener('change', handlePracticeModeChange);
     
     // 导航按钮事件监听
-    prevSentenceBtn.addEventListener('click', handlePrevSentence);
-    nextSentenceBtn.addEventListener('click', handleNextSentence);
-    completeTranslationBtn.addEventListener('click', handleCompleteTranslation);
-    passageCompleteBtn.addEventListener('click', handleCompleteTranslation);
-    downloadPdfBtn.addEventListener('click', handleDownloadPdf);
+    if (prevSentenceBtn) prevSentenceBtn.addEventListener('click', handlePrevSentence);
+    if (nextSentenceBtn) nextSentenceBtn.addEventListener('click', handleNextSentence);
+    if (completeTranslationBtn) completeTranslationBtn.addEventListener('click', handleCompleteTranslation);
+    if (passageCompleteBtn) passageCompleteBtn.addEventListener('click', handleCompleteTranslation);
+    if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', handleDownloadPdf);
     
     // DeepSeek API 相关事件监听
-    saveApiKeyBtn.addEventListener('click', saveApiKey);
+    if (saveApiKeyBtn) saveApiKeyBtn.addEventListener('click', saveApiKey);
     
     // 日志面板切换按钮事件监听
     const toggleLogBtn = document.getElementById('toggle-log-btn');
@@ -83,11 +289,69 @@ function initEventListeners() {
         toggleLogBtn.removeEventListener('click', toggleLogPanel);
         toggleLogBtn.addEventListener('click', toggleLogPanel);
     }
+    
+    // 下拉菜单事件监听
+    const dropdownOptions = document.querySelectorAll('.dropdown-option');
+    dropdownOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // 检查当前是否在模式选择页面，如果不是则不执行任何操作
+            const modeSelection = document.getElementById('mode-selection');
+            if (!modeSelection || !modeSelection.classList.contains('active')) {
+                return;
+            }
+            
+            // 设置当前切分类型
+            currentSplitType = this.dataset.mode;
+            // 更新练习模式选择器
+            if (practiceModeSelect) practiceModeSelect.value = currentSplitType;
+            // 启动分句练习模式
+            startSentenceMode();
+        });
+    });
+}
+
+// 处理练习模式切换
+function handlePracticeModeChange() {
+    if (!practiceModeSelect) return;
+    currentSplitType = practiceModeSelect.value;
+    
+    // 切换到新的切分结果
+    sentences = sentenceSplits[currentSplitType];
+    
+    // 重置当前句子索引和用户翻译
+    currentSentenceIndex = 0;
+    userTranslations = [];
+    
+    // 更新当前显示的句子和进度
+    updateCurrentSentence();
 }
 
 // 显示文章选择界面
 function showPassageSelection() {
     passageList.innerHTML = '';
+    
+    // 创建随机选择按钮
+    const randomSelectBtn = document.createElement('button');
+    randomSelectBtn.id = 'random-select-btn';
+    randomSelectBtn.className = 'select-passage-btn random-btn';
+    randomSelectBtn.textContent = '随机选择';
+    randomSelectBtn.title = '随机选择一篇未被选择过的文章';
+    
+    // 检查是否有文章可选择
+    if (passages.length === 0) {
+        randomSelectBtn.disabled = true;
+        randomSelectBtn.title = '无可用文章';
+    } else {
+        randomSelectBtn.disabled = false;
+        // 检查是否所有文章都已被选择
+        const unselectedPassages = passages.filter((_, index) => !selectedPassages.includes(index));
+        if (unselectedPassages.length === 0) {
+            randomSelectBtn.disabled = false; // 允许用户再次随机选择已选过的文章
+        }
+    }
+    
+    // 添加随机选择按钮到文章列表容器
+    passageList.appendChild(randomSelectBtn);
     
     // 动态生成文章列表
     passages.forEach((passage, index) => {
@@ -105,30 +369,132 @@ function showPassageSelection() {
     const selectButtons = document.querySelectorAll('.select-passage-btn');
     selectButtons.forEach(btn => {
         btn.addEventListener('click', function() {
-            const index = parseInt(this.getAttribute('data-index'));
-            selectPassage(index);
+            if (this.id === 'random-select-btn') {
+                randomSelectPassage();
+            } else {
+                const index = parseInt(this.getAttribute('data-index'));
+                selectPassage(index);
+            }
         });
     });
     
-    // 显示文章选择区域
-    showSection(passageSelection);
+    // 保存状态
+    appState.passages = passages;
+    saveAppState();
+    
+    // 如果当前页面是上传页面，则跳转到文档选择页面
+    if (window.location.pathname.endsWith('1_upload.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('2_document_selection.html');
+        } else {
+            window.location.href = '2_document_selection.html';
+        }
+    } else {
+        // 显示文章选择区域
+        showSection(passageSelection);
+    }
 }
 
 // 选择文章
 function selectPassage(index) {
     currentPassageIndex = index;
-    // 将当前文章分割为句子（按换行）
-    sentences = splitChineseSentences(passages[index]);
+    // 保存两种切分规则的结果
+    sentenceSplits = splitChineseSentences(passages[index]);
     
-    // 显示模式选择
-    showSection(modeSelection);
-    hideSection(passageSelection);
+    // 重置切分类型
+    currentSplitType = 'byLine';
+    
+    // 规则优先级判断逻辑
+    // 检查是否同时满足两种切分规则
+    shouldShowMenu = false;
+    
+    // 条件1: 两种切分结果都不为空
+    const bothHaveSentences = sentenceSplits.byLine.length > 0 && sentenceSplits.byPeriod.length > 0;
+    
+    // 条件2: 两种切分结果不同
+    const resultsDifferent = JSON.stringify(sentenceSplits.byLine) !== JSON.stringify(sentenceSplits.byPeriod);
+    
+    // 条件3: 按句号切分的结果长度大于1（避免只有一个句子的情况）
+    const periodHasMultipleSentences = sentenceSplits.byPeriod.length > 1;
+    
+    if (bothHaveSentences && resultsDifferent && periodHasMultipleSentences) {
+        shouldShowMenu = true;
+    }
+    
+    // 初始使用按换行切分的结果
+    sentences = sentenceSplits[currentSplitType];
+    
+    // 将当前文章索引添加到已选择数组（如果尚未存在）
+    if (!selectedPassages.includes(index)) {
+        selectedPassages.push(index);
+    }
+    
+    // 保存状态
+    appState.currentPassageIndex = currentPassageIndex;
+    appState.sentenceSplits = sentenceSplits;
+    appState.currentSplitType = currentSplitType;
+    appState.shouldShowMenu = shouldShowMenu;
+    appState.selectedPassages = selectedPassages;
+    appState.sentences = sentences;
+    saveAppState();
+    
+    // 如果当前页面是文档选择页面，则跳转到模式选择页面
+    if (window.location.pathname.endsWith('2_document_selection.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('3_mode_selection.html');
+        } else {
+            window.location.href = '3_mode_selection.html';
+        }
+    } else {
+        // 显示模式选择
+        showSection(modeSelection);
+        hideSection(passageSelection);
+    }
 }
 
 // 返回文章选择
 function backToPassageSelection() {
-    showSection(passageSelection);
-    hideSection(modeSelection);
+    // 如果当前页面是模式选择页面，则跳转到文档选择页面
+    if (window.location.pathname.endsWith('3_mode_selection.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('2_document_selection.html');
+        } else {
+            window.location.href = '2_document_selection.html';
+        }
+    } else {
+        showSection(passageSelection);
+        hideSection(modeSelection);
+    }
+}
+
+// 随机选择文章
+function randomSelectPassage() {
+    // 检查是否有文章可选择
+    if (passages.length === 0) {
+        alert('无可用文章');
+        return;
+    }
+    
+    // 获取未被选择过的文章索引
+    const unselectedIndices = [];
+    for (let i = 0; i < passages.length; i++) {
+        if (!selectedPassages.includes(i)) {
+            unselectedIndices.push(i);
+        }
+    }
+    
+    let randomIndex;
+    if (unselectedIndices.length > 0) {
+        // 从未被选择的文章中随机选择
+        randomIndex = unselectedIndices[Math.floor(Math.random() * unselectedIndices.length)];
+    } else {
+        // 如果所有文章都已被选择，提示用户并允许从所有文章中随机选择
+        alert('所有文章均已被选择，将从已选择的文章中重新随机选择');
+        randomIndex = Math.floor(Math.random() * passages.length);
+    }
+    
+    // 调用selectPassage函数选择文章
+    selectPassage(randomIndex);
 }
 
 // 处理文件上传
@@ -148,30 +514,28 @@ function handleFileUpload() {
     }
 }
 
-// 全局变量增加
-let passages = [
-    // 默认测试文章 1
-    "这是第一篇测试文章的内容。这篇文章包含多个句子，用于测试分句练习模式和PDF生成功能。\n\n今天天气很好，阳光明媚，适合外出活动。\n\n学习英语翻译需要不断练习，掌握词汇和语法知识。\n\n通过翻译练习，可以提高语言表达能力和跨文化交流能力。\n\n希望这篇测试文章能够帮助您了解应用的功能和使用方法。",
-    // 默认测试文章 2
-    "这是第二篇测试文章的内容，用于测试整篇练习模式。\n\n这篇文章的内容更长，包含更多的段落和句子结构。\n\n在整篇练习模式下，用户需要一次性翻译完整的文章。\n\n这种模式可以帮助用户提高整体翻译能力和上下文理解能力。\n\n通过不断练习，可以逐渐掌握翻译技巧，提高翻译质量。\n\n这篇文章的内容涵盖了不同的主题和语言结构，适合进行全面的翻译练习。\n\n希望您能够通过这篇文章的练习，提高自己的翻译水平和语言能力。"
-];
-let currentPassageIndex = 0;
+
 
 // 解析.docx文件
 function parseDocxFile(file) {
+    console.log('开始解析文件:', file.name);
     const reader = new FileReader();
     reader.onload = function(e) {
+        console.log('文件读取完成');
         const arrayBuffer = e.target.result;
         
         // 使用JSZip和docx.js解析文件
         JSZip.loadAsync(arrayBuffer).then(function(zip) {
+            console.log('JSZip加载完成');
             return zip.file('word/document.xml').async('text');
         }).then(function(xmlContent) {
+            console.log('获取document.xml成功');
             const doc = new DOMParser().parseFromString(xmlContent, 'application/xml');
             
             // 改进的解析逻辑，保留换行和段落
             let fullText = '';
             const paragraphs = doc.getElementsByTagName('w:p');
+            console.log('找到段落数量:', paragraphs.length);
             
             for (let i = 0; i < paragraphs.length; i++) {
                 const paragraph = paragraphs[i];
@@ -194,19 +558,40 @@ function parseDocxFile(file) {
                 }
             }
             
+            console.log('提取到的文本:', fullText);
+            
             // 按Passage分割文章
             passages = splitByPassage(fullText);
+            console.log('分割后的文章数量:', passages.length);
             if (passages.length === 0) {
                 alert('未检测到有效文章，请确保文档包含Passage标记');
                 return;
             }
             
-            // 显示文章选择
-            showPassageSelection();
-            hideSection(uploadSection);
+            // 保存状态
+            appState.passages = passages;
+            console.log('准备保存状态:', appState);
+            saveAppState();
+            console.log('状态保存成功');
+            
+            // 保存历史文件记录
+            const historyFileData = {
+                filename: file.name,
+                description: `导入了${passages.length}篇文章`,
+                content: passages,
+                fileType: 'docx'
+            };
+            TranslationHistory.addHistoryFile(historyFileData);
+            
+            // 跳转到文章选择页面
+            if (window.PageTransition) {
+                PageTransition.transitionTo('2_document_selection.html');
+            } else {
+                window.location.href = '2_document_selection.html';
+            }
         }).catch(function(error) {
             console.error('解析文件出错:', error);
-            alert('解析文件出错，请检查文件格式');
+            alert('解析文件出错，请检查文件格式\n\n错误详情:\n' + error.message);
         });
     };
     reader.readAsArrayBuffer(file);
@@ -214,29 +599,24 @@ function parseDocxFile(file) {
 
 // 按Passage分割文章
 function splitByPassage(text) {
-    // 按Passage标记分割文章
     const passageRegex = /Passage\s*\d+/gi;
-    const passages = [];
+    const passageList = [];
     let lastIndex = 0;
     let match;
     
-    // 找到所有Passage标记
     const passageMatches = [];
     while ((match = passageRegex.exec(text)) !== null) {
         passageMatches.push({ index: match.index, text: match[0] });
     }
     
-    // 如果没有Passage标记，整个文本作为一篇文章
     if (passageMatches.length === 0) {
         return [text.trim()];
     }
     
-    // 分割文章
     for (let i = 0; i < passageMatches.length; i++) {
         const currentMatch = passageMatches[i];
         const nextMatch = passageMatches[i + 1];
         
-        // 跳过Passage标记本身，只取标记之后的内容
         const startIndex = currentMatch.index + currentMatch.text.length;
         
         let passageText;
@@ -247,28 +627,89 @@ function splitByPassage(text) {
         }
         
         if (passageText) {
-            passages.push(passageText);
+            passageList.push(passageText);
         }
     }
     
-    return passages;
+    return passageList;
 }
 
-// 中文分句函数（现在按换行分割，保留原始结构）
+// 中文分句函数（支持按换行和按句号两种切分规则）
 function splitChineseSentences(text) {
-    // 按换行符分割句子
+    // 按换行符分割句子（原有规则）
     const lines = text.split('\n');
-    let sentences = [];
+    let byLineSentences = [];
     
     for (let line of lines) {
         line = line.trim();
         if (line) {
-            sentences.push(line);
+            byLineSentences.push(line);
         }
     }
     
-    return sentences;
+    // 按句号分割句子（新增规则）
+    const byPeriodSentences = [];
+    let tempSentence = '';
+    
+    for (let char of text) {
+        tempSentence += char;
+        if (char === '。') {
+            tempSentence = tempSentence.trim();
+            if (tempSentence) {
+                byPeriodSentences.push(tempSentence);
+                tempSentence = '';
+            }
+        }
+    }
+    
+    // 处理最后一个没有句号结尾的句子
+    tempSentence = tempSentence.trim();
+    if (tempSentence) {
+        byPeriodSentences.push(tempSentence);
+    }
+    
+    // 返回两种切分结果
+    return {
+        byLine: byLineSentences,
+        byPeriod: byPeriodSentences
+    };
 }
+
+// 测试函数（开发时使用）
+function testSplitChineseSentences() {
+    // 测试用例1: 同时包含换行和句号
+    const text1 = "这是第一行。这是第二行\n这是第三行。这是第四行";
+    console.log("测试用例1:", text1);
+    console.log("结果:", splitChineseSentences(text1));
+    
+    // 测试用例2: 只包含句号，没有换行
+    const text2 = "这是一个句子。这是第二个句子。这是第三个句子";
+    console.log("\n测试用例2:", text2);
+    console.log("结果:", splitChineseSentences(text2));
+    
+    // 测试用例3: 只包含换行，没有句号
+    const text3 = "这是第一行\n这是第二行\n这是第三行";
+    console.log("\n测试用例3:", text3);
+    console.log("结果:", splitChineseSentences(text3));
+    
+    // 测试用例4: 既没有换行也没有句号
+    const text4 = "这是一个没有分隔符的长句子";
+    console.log("\n测试用例4:", text4);
+    console.log("结果:", splitChineseSentences(text4));
+    
+    // 测试用例5: 包含多个连续句号
+    const text5 = "这是第一个句子。。这是第二个句子。。。这是第三个句子";
+    console.log("\n测试用例5:", text5);
+    console.log("结果:", splitChineseSentences(text5));
+    
+    // 测试用例6: 包含空行和句号
+    const text6 = "这是第一行。\n\n这是第二行。\n这是第三行";
+    console.log("\n测试用例6:", text6);
+    console.log("结果:", splitChineseSentences(text6));
+}
+
+// 开发时调用测试函数
+// testSplitChineseSentences();
 
 // 开始分句练习
 function startSentenceMode() {
@@ -276,18 +717,55 @@ function startSentenceMode() {
     currentSentenceIndex = 0;
     userTranslations = [];
     
-    // 设置当前句子
-    updateCurrentSentence();
+    // 根据shouldShowMenu决定是否显示下拉菜单
+    if (practiceModeSelector) {
+        if (shouldShowMenu) {
+            practiceModeSelector.classList.remove('hidden');
+        } else {
+            practiceModeSelector.classList.add('hidden');
+            // 如果不显示菜单，检查是否只满足句号切分规则
+            if (sentenceSplits.byPeriod.length > 0 && sentenceSplits.byLine.length === 0) {
+                currentSplitType = 'byPeriod';
+            }
+        }
+    } else {
+        // 如果practiceModeSelector不存在，直接检查是否只满足句号切分规则
+        if (shouldShowMenu === false && sentenceSplits.byPeriod.length > 0 && sentenceSplits.byLine.length === 0) {
+            currentSplitType = 'byPeriod';
+        }
+    }
     
-    // 显示练习区域
-    showSection(sentencePractice);
-    hideSection(modeSelection);
+    // 无论shouldShowMenu的值是什么，都根据当前的currentSplitType更新sentences数组
+    sentences = sentenceSplits[currentSplitType];
     
-    // 开始计时
-    startTimer();
+    // 保存状态
+    appState.currentMode = currentMode;
+    appState.userTranslations = userTranslations;
+    appState.currentSentenceIndex = currentSentenceIndex;
+    appState.sentences = sentences;
+    saveAppState();
     
-    // 聚焦输入框
-    englishInput.focus();
+    // 如果当前页面是模式选择页面，则跳转到分句练习页面
+    if (window.location.pathname.endsWith('3_mode_selection.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('4_sentence_practice.html');
+        } else {
+            window.location.href = '4_sentence_practice.html';
+        }
+    } else {
+        // 设置当前句子
+        updateCurrentSentence();
+        
+        // 显示练习区域
+        showSection(sentencePractice);
+        hideSection(modeSelection);
+        
+        // 开始计时
+        startTimer();
+        
+        // 聚焦输入框
+        englishInput.focus();
+    }
 }
 
 // 更新当前句子
@@ -347,6 +825,23 @@ async function handleCompleteTranslation() {
             userTranslations = [translation];
         }
     }
+    
+    // 保存翻译历史版本
+    const evaluationResult = JSON.parse(localStorage.getItem('evaluationResult'));
+    const historyVersionData = {
+        filename: `Passage ${currentPassageIndex + 1}`,
+        description: `${currentMode === 'sentence' ? '分句' : '整篇'}翻译完成`,
+        passageIndex: currentPassageIndex,
+        passageContent: passages[currentPassageIndex],
+        translations: userTranslations,
+        mode: currentMode,
+        timestamp: Date.now(),
+        score: evaluationResult ? evaluationResult.score : null,
+        timeString: evaluationResult ? evaluationResult.timeString : null,
+        aiEvaluation: evaluationResult ? evaluationResult.aiEvaluationText : null,
+        detailedErrors: evaluationResult ? evaluationResult.detailedErrors : null
+    };
+    TranslationHistory.addHistoryVersion(historyVersionData);
     
     // 完成练习并显示结果
     await endPractice();
@@ -449,6 +944,12 @@ async function generatePdfContent(fileName) {
     // 克隆结果区域，以便我们可以修改它而不影响原始页面
     const printContainer = resultSection.cloneNode(true);
     
+    // 移除右侧单词详情对话框
+    const wordDialog = printContainer.querySelector('.word-dialog');
+    if (wordDialog) {
+        wordDialog.remove();
+    }
+    
     // 移除AI评语之后的内容（翻译文本和操作按钮）
     const aiEvaluationItem = printContainer.querySelector('#ai-evaluation').closest('.result-item');
     if (aiEvaluationItem) {
@@ -465,8 +966,8 @@ async function generatePdfContent(fileName) {
         
         // 移除操作按钮区域
         const actionButtons = printContainer.querySelector('.action-buttons');
-        if (actionButtons) {
-            printContainer.removeChild(actionButtons);
+        if (actionButtons && actionButtons.parentNode) {
+            actionButtons.parentNode.removeChild(actionButtons);
         }
     }
     
@@ -476,6 +977,8 @@ async function generatePdfContent(fileName) {
         body { font-family: 'Source Han Sans', 'Noto Sans SC', sans-serif; }
         .container { max-width: none; margin: 0; padding: 0; }
         section { box-shadow: none; border: none; }
+        .result-main { display: block; }
+        .result-content { width: 100% !important; max-width: 100% !important; }
         .result-container { display: block; }
         .result-item { margin-bottom: 20px; page-break-inside: avoid; }
         /* 确保页眉页脚在打印时正确显示 */
@@ -620,17 +1123,32 @@ function startPassageMode() {
     
     // 设置中文 passage，取消所有换行符
     const passageText = passages[currentPassageIndex].replace(/\n/g, ' ');
-    chinesePassage.innerHTML = passageText;
     
-    // 显示练习区域
-    showSection(passagePractice);
-    hideSection(modeSelection);
+    // 保存状态
+    appState.currentMode = currentMode;
+    saveAppState();
     
-    // 开始计时
-    startTimer();
-    
-    // 聚焦输入框
-    passageInput.focus();
+    // 如果当前页面是模式选择页面，则跳转到整篇练习页面
+    if (window.location.pathname.endsWith('3_mode_selection.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('4_passage_practice.html');
+        } else {
+            window.location.href = '4_passage_practice.html';
+        }
+    } else {
+        // 设置中文 passage，取消所有换行符
+        chinesePassage.innerHTML = passageText;
+        
+        // 显示练习区域
+        showSection(passagePractice);
+        hideSection(modeSelection);
+        
+        // 开始计时
+        startTimer();
+        
+        // 聚焦输入框
+        passageInput.focus();
+    }
 }
 
 // 处理分句输入
@@ -651,28 +1169,374 @@ async function handleSentenceInput(e) {
     }
 }
 
-// 处理分句输入框的键盘事件（上箭头回到上一句）
-function handleSentenceKeyDown(e) {
-    if (currentMode === 'sentence' && e.key === 'ArrowUp') {
-        if (currentSentenceIndex > 0) {
-            // 保存当前翻译
-            const currentTranslation = englishInput.value.trim();
-            if (currentTranslation) {
-                userTranslations[currentSentenceIndex] = currentTranslation;
+// 页面过渡效果系统
+const PageTransition = {
+    // 页面过渡配置
+    config: {
+        duration: 400,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        transitionType: 'slide-blur-left', // 统一使用向左模糊过渡效果
+        mobileDuration: 300
+    },
+
+    // 页面访问历史记录
+    history: {
+        pages: [],
+        maxSize: 20,
+        
+        // 添加页面到历史记录
+        add(pageUrl) {
+            // 避免重复添加相同的页面
+            if (this.pages.length > 0 && this.pages[this.pages.length - 1] === pageUrl) {
+                return;
             }
             
-            // 回到上一句
-            currentSentenceIndex--;
+            // 添加新页面
+            this.pages.push(pageUrl);
             
-            // 更新当前句子显示
-            if (currentSentenceIndex < sentences.length) {
-                currentChinese.textContent = sentences[currentSentenceIndex];
-                currentSentenceEl.textContent = currentSentenceIndex + 1;
-                totalSentencesEl.textContent = sentences.length;
-                
-                // 恢复上一句的翻译（如果有）
-                englishInput.value = userTranslations[currentSentenceIndex] || '';
-                englishInput.focus();
+            // 限制历史记录大小
+            if (this.pages.length > this.maxSize) {
+                this.pages.shift();
+            }
+            
+            // 保存到localStorage
+            this.save();
+        },
+        
+        // 获取上一个页面
+        getPrevious() {
+            if (this.pages.length >= 2) {
+                // 返回倒数第二个页面（当前页面的前一个页面）
+                return this.pages[this.pages.length - 2];
+            }
+            return null;
+        },
+        
+        // 获取当前页面
+        getCurrent() {
+            if (this.pages.length > 0) {
+                return this.pages[this.pages.length - 1];
+            }
+            return null;
+        },
+        
+        // 保存到localStorage
+        save() {
+            try {
+                localStorage.setItem('pageHistory', JSON.stringify(this.pages));
+            } catch (e) {
+                console.warn('无法保存页面历史记录:', e);
+            }
+        },
+        
+        // 从localStorage加载
+        load() {
+            try {
+                const saved = localStorage.getItem('pageHistory');
+                if (saved) {
+                    this.pages = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('无法加载页面历史记录:', e);
+                this.pages = [];
+            }
+        },
+        
+        // 清除历史记录
+        clear() {
+            this.pages = [];
+            this.save();
+        }
+    },
+
+    // 初始化页面过渡
+    init() {
+        // 加载页面历史记录
+        this.history.load();
+        
+        // 记录当前页面
+        this.history.add(window.location.pathname);
+        
+        // 页面加载时添加过渡效果
+        document.addEventListener('DOMContentLoaded', () => {
+            this.onPageLoad();
+        });
+
+        // 监听所有链接点击，添加过渡效果
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && link.href && this.shouldTransition(link.href)) {
+                e.preventDefault();
+                this.transitionTo(link.href, this.getTransitionType(link));
+            }
+        });
+
+        // 监听浏览器后退/前进
+        window.addEventListener('popstate', (e) => {
+            if (e.state) {
+                this.onPageLoad('back');
+            }
+        });
+
+        // 为所有页面内容添加过渡类
+        this.wrapPageContent();
+    },
+
+    // 页面加载时的处理
+    onPageLoad(direction = 'forward') {
+        const body = document.body;
+        
+        // 添加加载类
+        body.classList.add('loaded');
+
+        // 根据方向选择进入动画
+        const pageContent = document.querySelector('.page-content') || document.body;
+        const animationClass = this.getEnterAnimation(direction);
+        
+        pageContent.classList.add(animationClass);
+        
+        // 动画结束后移除类
+        setTimeout(() => {
+            pageContent.classList.remove(animationClass);
+        }, this.getDuration());
+
+        // 滚动到顶部
+        window.scrollTo(0, 0);
+    },
+
+    // 过渡到新页面
+    transitionTo(url, transitionType = null) {
+        const body = document.body;
+        const pageContent = document.querySelector('.page-content') || document.body;
+        
+        // 使用指定的过渡类型或默认类型
+        const type = transitionType || this.config.transitionType;
+        const exitAnimation = this.getExitAnimation(type);
+        
+        // 添加退出动画
+        pageContent.classList.add(exitAnimation);
+        
+        // 等待动画完成后导航
+        setTimeout(() => {
+            window.location.href = url;
+        }, this.getDuration());
+    },
+
+    // 判断是否应该添加过渡效果
+    shouldTransition(href) {
+        // 排除外链、锚点链接、特殊链接和JavaScript链接
+        if (href.startsWith('#') || 
+            href.startsWith('mailto:') || 
+            href.startsWith('tel:') || 
+            href.startsWith('javascript:')) {
+            return false;
+        }
+        
+        // 只对同域名的HTML文件添加过渡
+        const currentDomain = window.location.hostname;
+        const linkDomain = new URL(href, window.location.origin).hostname;
+        
+        return currentDomain === linkDomain && href.endsWith('.html');
+    },
+
+    // 根据链接获取过渡类型
+    getTransitionType(link) {
+        // 统一使用向左模糊过渡效果
+        return 'slide-blur-left';
+    },
+
+    // 获取进入动画类名
+    getEnterAnimation(direction) {
+        // 统一使用向左模糊进入动画
+        return 'slide-blur-left';
+    },
+
+    // 获取退出动画类名
+    getExitAnimation(type) {
+        // 统一使用向左模糊退出动画
+        return 'slide-blur-left-out';
+    },
+
+    // 获取动画时长
+    getDuration() {
+        if (window.innerWidth <= 768) {
+            return this.config.mobileDuration;
+        }
+        return this.config.duration;
+    },
+
+    // 包装页面内容以便应用过渡效果
+    wrapPageContent() {
+        const body = document.body;
+        const mainContent = body.querySelector('main') || body.querySelector('.container') || body.firstElementChild;
+        
+        if (mainContent && !mainContent.classList.contains('page-content')) {
+            mainContent.classList.add('page-content');
+            
+            // 初始状态设置为不可见
+            mainContent.style.opacity = '0';
+            mainContent.style.transform = 'translateY(20px)';
+            
+            // 页面加载后显示
+            setTimeout(() => {
+                mainContent.classList.add('visible');
+                mainContent.style.opacity = '';
+                mainContent.style.transform = '';
+            }, 50);
+        }
+    },
+
+    // 平滑滚动到指定元素
+    smoothScrollTo(element, offset = 0) {
+        const targetPosition = element.getBoundingClientRect().top + window.pageYOffset - offset;
+        
+        window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+        });
+    },
+
+    // 平滑滚动到顶部
+    smoothScrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    },
+
+    // 导航到指定页面（带历史记录管理）
+    navigateTo(url) {
+        if (!url) {
+            console.warn('无效的URL');
+            return;
+        }
+
+        // 确保URL是相对路径
+        if (url.startsWith('http')) {
+            try {
+                const urlObj = new URL(url);
+                url = urlObj.pathname + urlObj.search;
+            } catch (e) {
+                console.warn('URL解析失败:', e);
+                return;
+            }
+        }
+
+        // 添加到历史记录
+        this.history.add(url);
+
+        // 使用过渡效果导航到新页面
+        this.transitionTo(url);
+    }
+};
+
+// 初始化页面过渡系统
+PageTransition.init();
+
+// 为所有导航链接添加过渡效果
+document.addEventListener('DOMContentLoaded', () => {
+    // 获取安装应用按钮元素
+    installAppBtn = document.getElementById('install-app-btn');
+    
+    // PWA安装事件处理
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        if (installAppBtn) {
+            installAppBtn.classList.remove('hidden');
+            
+            installAppBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    
+                    if (outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    
+                    deferredPrompt = null;
+                    installAppBtn.classList.add('hidden');
+                }
+            });
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        console.log('PWA was installed');
+        if (installAppBtn) {
+            installAppBtn.classList.add('hidden');
+        }
+        deferredPrompt = null;
+    });
+
+    // 为所有导航链接添加过渡效果
+    const navLinks = document.querySelectorAll('nav a, .nav-btn, .wordbook-icon');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            const href = link.getAttribute('href');
+            if (href && href.endsWith('.html')) {
+                e.preventDefault();
+                const transitionType = PageTransition.getTransitionType(link);
+                PageTransition.transitionTo(href, transitionType);
+            }
+        });
+    });
+
+    // 为返回按钮添加过渡效果
+    const backButtons = document.querySelectorAll('.back-btn, #back-to-select, #back-to-passage, #upload-new');
+    backButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const href = btn.getAttribute('href');
+            if (href && !href.startsWith('javascript:')) {
+                e.preventDefault();
+                PageTransition.transitionTo(href);
+            }
+        });
+    });
+
+    // 为模式选择按钮添加过渡效果
+    const modeButtons = document.querySelectorAll('#sentence-mode-btn, #passage-mode-btn');
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const href = btn.getAttribute('href');
+            if (href && !href.startsWith('javascript:')) {
+                e.preventDefault();
+                PageTransition.transitionTo(href);
+            }
+        });
+    });
+});
+
+// 导出页面过渡对象供其他模块使用
+window.PageTransition = PageTransition;
+
+// 处理分句输入框的键盘事件（上箭头回到上一句）
+function handleSentenceKeyDown(e) {
+    if (currentMode === 'sentence') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (currentSentenceIndex < sentences.length - 1) {
+                const currentTranslation = englishInput.value.trim();
+                if (currentTranslation) {
+                    userTranslations[currentSentenceIndex] = currentTranslation;
+                }
+                currentSentenceIndex++;
+                updateCurrentSentence();
+            } else {
+                handleCompleteTranslation();
+            }
+        } else if (e.key === 'ArrowUp') {
+            if (currentSentenceIndex > 0) {
+                const currentTranslation = englishInput.value.trim();
+                if (currentTranslation) {
+                    userTranslations[currentSentenceIndex] = currentTranslation;
+                }
+                currentSentenceIndex--;
+                updateCurrentSentence();
             }
         }
     }
@@ -717,6 +1581,11 @@ function showLoadingIndicator(message = '正在评估，请稍候...') {
     let loadingContainer = document.getElementById('loading-indicator');
     
     if (!loadingContainer) {
+        // 获取当前主题色
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+        const primaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--primary-color-rgb').trim();
+        const isDarkMode = document.documentElement.getAttribute('data-dark-mode') === 'true';
+        
         // 创建背景遮罩
         const overlay = document.createElement('div');
         overlay.id = 'loading-overlay';
@@ -737,8 +1606,8 @@ function showLoadingIndicator(message = '正在评估，请稍候...') {
         loadingContainer.style.top = '50%';
         loadingContainer.style.left = '50%';
         loadingContainer.style.transform = 'translate(-50%, -50%)';
-        loadingContainer.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-        loadingContainer.style.border = '1px solid #dee2e6';
+        loadingContainer.style.backgroundColor = isDarkMode ? 'rgba(30, 30, 30, 1)' : 'rgba(255, 255, 255, 1)';
+        loadingContainer.style.border = '2px solid ' + primaryColor;
         loadingContainer.style.borderRadius = '12px';
         loadingContainer.style.padding = '32px';
         loadingContainer.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
@@ -747,26 +1616,28 @@ function showLoadingIndicator(message = '正在评估，请稍候...') {
         loadingContainer.style.minWidth = '300px';
         loadingContainer.style.maxWidth = '90%';
         loadingContainer.style.boxSizing = 'border-box';
+        loadingContainer.style.transition = 'border-color 0.3s ease, background-color 0.3s ease';
         
         // 创建加载动画
         const spinner = document.createElement('div');
         spinner.className = 'spinner';
         spinner.style.border = '6px solid #f0f0f0';
-        spinner.style.borderTop = '6px solid #007bff';
-        spinner.style.borderLeft = '6px solid #007bff';
+        spinner.style.borderTop = '6px solid ' + primaryColor;
+        spinner.style.borderLeft = '6px solid ' + primaryColor;
         spinner.style.borderRadius = '50%';
         spinner.style.width = '60px';
         spinner.style.height = '60px';
         spinner.style.animation = 'spin 1.2s linear infinite';
         spinner.style.margin = '0 auto 24px';
-        spinner.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.3)';
+        spinner.style.boxShadow = '0 4px 12px rgba(' + primaryColorRgb + ', 0.3)';
+        spinner.style.transition = 'border-color 0.3s ease, box-shadow 0.3s ease';
         
         // 创建消息文本
         const loadingMessage = document.createElement('div');
         loadingMessage.id = 'loading-message';
         loadingMessage.textContent = message;
         loadingMessage.style.fontSize = '18px';
-        loadingMessage.style.color = '#212529';
+        loadingMessage.style.color = isDarkMode ? '#e0e0e0' : '#212529';
         loadingMessage.style.fontWeight = '500';
         loadingMessage.style.marginBottom = '12px';
         loadingMessage.style.lineHeight = '1.5';
@@ -775,12 +1646,13 @@ function showLoadingIndicator(message = '正在评估，请稍候...') {
         const progressText = document.createElement('div');
         progressText.id = 'loading-progress';
         progressText.style.fontSize = '16px';
-        progressText.style.color = '#6c757d';
+        progressText.style.color = isDarkMode ? '#b0b0b0' : '#6c757d';
         progressText.style.marginTop = '16px';
         progressText.style.fontWeight = '400';
         
         // 添加动画样式
         const style = document.createElement('style');
+        style.id = 'loading-animation-style';
         style.textContent = `
             @keyframes spin {
                 0% { transform: rotate(0deg); }
@@ -788,11 +1660,18 @@ function showLoadingIndicator(message = '正在评估，请稍候...') {
             }
             @keyframes pulse {
                 0% { opacity: 1; }
-                50% { opacity: 0.7; }
+                50% { opacity: 0.85; }
                 100% { opacity: 1; }
+            }
+            @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
             }
             .loading-indicator {
                 animation: pulse 1.5s ease-in-out infinite;
+            }
+            .spinner {
+                transition: border-color 0.3s ease, box-shadow 0.3s ease;
             }
         `;
         document.head.appendChild(style);
@@ -816,6 +1695,39 @@ function updateLoadingProgress(current, total) {
     const progressText = document.getElementById('loading-progress');
     if (progressText) {
         progressText.textContent = `正在评估第 ${current} 句，共 ${total} 句`;
+    }
+}
+
+// 更新加载指示器的主题颜色
+function updateLoadingIndicatorTheme() {
+    const loadingContainer = document.getElementById('loading-indicator');
+    const spinner = document.querySelector('.spinner');
+    const loadingMessage = document.getElementById('loading-message');
+    const progressText = document.getElementById('loading-progress');
+    
+    if (loadingContainer || spinner || loadingMessage || progressText) {
+        const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+        const primaryColorRgb = getComputedStyle(document.documentElement).getPropertyValue('--primary-color-rgb').trim();
+        const isDarkMode = document.documentElement.getAttribute('data-dark-mode') === 'true';
+        
+        if (loadingContainer) {
+            loadingContainer.style.borderColor = primaryColor;
+            loadingContainer.style.backgroundColor = isDarkMode ? 'rgba(30, 30, 30, 1)' : 'rgba(255, 255, 255, 1)';
+        }
+        
+        if (spinner) {
+            spinner.style.borderTopColor = primaryColor;
+            spinner.style.borderLeftColor = primaryColor;
+            spinner.style.boxShadow = '0 4px 12px rgba(' + primaryColorRgb + ', 0.3)';
+        }
+        
+        if (loadingMessage) {
+            loadingMessage.style.color = isDarkMode ? '#e0e0e0' : '#212529';
+        }
+        
+        if (progressText) {
+            progressText.style.color = isDarkMode ? '#b0b0b0' : '#6c757d';
+        }
     }
 }
 
@@ -883,6 +1795,7 @@ async function endPractice() {
     let score = 70; // 设置默认分数，避免未定义
     let detailedErrors = [];
     let totalSentenceScores = []; // 用于存储每个句子的分数
+    let aiEvaluationText = ''; // 用于存储AI评语
     
     try {
         // 选择评分系统
@@ -1047,11 +1960,70 @@ async function endPractice() {
     // 确保分数在合理范围内
     score = Math.max(0, Math.min(100, score));
     
+    // 生成AI评语
+    if (detailedErrors.length === 0) {
+        aiEvaluationText = `**翻译质量评估：**
+
+* 总体评分：${score}/100
+* 整体评价：翻译质量优秀，未检测到明显错误。
+* 建议：继续保持良好的翻译习惯，注意专业术语的准确性。`;
+    } else {
+        // 统计错误类型
+        const errorTypeCount = {};
+        detailedErrors.forEach(item => {
+            item.errors.forEach(error => {
+                errorTypeCount[error.type] = (errorTypeCount[error.type] || 0) + 1;
+            });
+        });
+        
+        // 生成错误统计文本
+        let errorStats = '\n**错误类型统计：**\n';
+        Object.entries(errorTypeCount).forEach(([type, count]) => {
+            errorStats += `- ${type}：${count}处\n`;
+        });
+        
+        // 根据分数生成评价
+        let overallEvaluation = '';
+        if (score >= 90) {
+            overallEvaluation = '翻译质量优秀，几乎没有错误。';
+        } else if (score >= 80) {
+            overallEvaluation = '翻译质量良好，有少量可改进的地方。';
+        } else if (score >= 70) {
+            overallEvaluation = '翻译质量中等，存在一些明显的错误。';
+        } else if (score >= 60) {
+            overallEvaluation = '翻译质量基本合格，但需要改进的地方较多。';
+        } else {
+            overallEvaluation = '翻译质量较差，需要系统地学习和改进。';
+        }
+        
+        // 生成AI评语
+        aiEvaluationText = `**翻译质量评估：**
+
+* 总体评分：${score}/100
+* 整体评价：${overallEvaluation}
+* 翻译完整度：${Math.round((detailedErrors.length / (currentMode === 'sentence' ? sentences.length : 1)) * 100)}%${errorStats}\n**建议：**\n- 重点关注${Object.keys(errorTypeCount).join('、')}等方面的问题\n- 多读多练，提高对语法和词汇的掌握\n- 注意翻译的流畅性和准确性`;
+    }
+    
     // 隐藏加载指示器
     hideLoadingIndicator();
     
-    // 显示结果
-    showResult(timeString, score, detailedErrors);
+    // 保存评估结果到localStorage
+    const evaluationResult = {
+        timeString,
+        score,
+        detailedErrors,
+        currentMode,
+        userTranslations,
+        aiEvaluationText
+    };
+    localStorage.setItem('evaluationResult', JSON.stringify(evaluationResult));
+    
+    // 导航到评估页面
+    if (window.PageTransition) {
+        PageTransition.transitionTo('4_result.html');
+    } else {
+        window.location.href = '4_result.html';
+    }
 }
 
 // 生成评分（模拟AI评分，基于错误分析）
@@ -1293,13 +2265,13 @@ function addHighlight(translation, errors) {
 }
 
 // 显示结果
-function showResult(timeString, score, detailedErrors) {
+function showResult(timeString, score, detailedErrors, aiEvaluationTextOverride = null) {
     // 设置结果
-    resultTime.textContent = timeString;
-    resultScore.textContent = `${score}/100`;
+    if (resultTime) resultTime.textContent = timeString;
+    if (resultScore) resultScore.textContent = `${score}/100`;
     
     // 清空并添加详细语法错误
-    grammarErrors.innerHTML = '';
+    if (grammarErrors) grammarErrors.innerHTML = '';
     
     // 构建带高亮的翻译文本数组
     const highlightedTranslations = [];
@@ -1308,12 +2280,14 @@ function showResult(timeString, score, detailedErrors) {
     let aiEvaluationText = '';
     
     if (detailedErrors.length === 0) {
-        const li = document.createElement('li');
-        li.textContent = '未检测到明显错误，翻译质量良好！';
-        li.style.backgroundColor = '#d4edda';
-        li.style.borderColor = '#c3e6cb';
-        li.style.color = '#155724';
-        grammarErrors.appendChild(li);
+        if (grammarErrors) {
+            const li = document.createElement('li');
+            li.textContent = '未检测到明显错误，翻译质量良好！';
+            li.style.backgroundColor = '#d4edda';
+            li.style.borderColor = '#c3e6cb';
+            li.style.color = '#155724';
+            grammarErrors.appendChild(li);
+        }
         
         // 使用原始翻译文本
         highlightedTranslations.push(...userTranslations);
@@ -1325,42 +2299,74 @@ function showResult(timeString, score, detailedErrors) {
 * 整体评价：翻译质量优秀，未检测到明显错误。
 * 建议：继续保持良好的翻译习惯，注意专业术语的准确性。`;
     } else {
-        // 按句子组织错误显示
-        detailedErrors.forEach((item, index) => {
-            // 添加句子/文章标题
-            const sentenceHeader = document.createElement('div');
-            sentenceHeader.className = 'sentence-error-header';
-            sentenceHeader.innerHTML = item.sentenceIndex === 0 ? 
-                `<strong>整篇文章：</strong>${item.chinese}` : 
-                `<strong>第${item.sentenceIndex}句：</strong>${item.chinese}`;
-            grammarErrors.appendChild(sentenceHeader);
+        // 按句子组织错误显示 - 遍历所有句子，确保显示所有翻译内容
+        const totalSentences = currentMode === 'sentence' ? sentences.length : 1;
+        
+        for (let i = 0; i < totalSentences; i++) {
+            const translation = userTranslations[i] || '';
+            if (!translation.trim()) continue;
             
-            // 为翻译添加高亮
-            const highlightedTranslation = addHighlight(item.translation, item.errors);
-            highlightedTranslations.push(highlightedTranslation);
+            // 查找当前句子在 detailedErrors 中的评估结果
+            const errorItem = detailedErrors.find(item => 
+                currentMode === 'sentence' ? item.sentenceIndex === i + 1 : item.sentenceIndex === 0
+            );
             
-            // 添加带高亮的翻译
-            const translationText = document.createElement('div');
-            translationText.className = 'sentence-translation';
-            translationText.innerHTML = `<em>你的翻译：${highlightedTranslation}</em>`;
-            grammarErrors.appendChild(translationText);
-            
-            // 添加错误列表
-            const errorList = document.createElement('ul');
-            errorList.className = 'sentence-errors';
-            
-            item.errors.forEach(error => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <strong>${error.type}：</strong>${error.description}<br>
-                    <strong>位置：</strong>${error.position}<br>
-                    <strong>说明：</strong>${error.example || '请检查该部分内容'}
-                `;
-                errorList.appendChild(li);
-            });
-            
-            grammarErrors.appendChild(errorList);
-        });
+            if (grammarErrors) {
+                // 添加句子/文章标题
+                const sentenceHeader = document.createElement('div');
+                sentenceHeader.className = 'sentence-error-header';
+                if (currentMode === 'sentence') {
+                    sentenceHeader.innerHTML = `<strong>第${i + 1}句：</strong>${sentences[i]}`;
+                } else {
+                    sentenceHeader.innerHTML = `<strong>整篇文章：</strong>${passages[currentPassageIndex]}`;
+                }
+                grammarErrors.appendChild(sentenceHeader);
+                
+                // 添加翻译内容
+                const translationText = document.createElement('div');
+                translationText.className = 'sentence-translation';
+                
+                if (errorItem && errorItem.errors.length > 0) {
+                    // 有错误：添加高亮和错误列表
+                    const highlightedTranslation = addHighlight(translation, errorItem.errors);
+                    highlightedTranslations.push(highlightedTranslation);
+                    translationText.innerHTML = `<em>你的翻译：${highlightedTranslation}</em>`;
+                    
+                    // 添加错误列表
+                    const errorList = document.createElement('ul');
+                    errorList.className = 'sentence-errors';
+                    
+                    errorItem.errors.forEach(error => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <strong>${error.type}：</strong>${error.description}<br>
+                            <strong>位置：</strong>${error.position}<br>
+                            <strong>说明：</strong>${error.example || '请检查该部分内容'}
+                        `;
+                        errorList.appendChild(li);
+                    });
+                    
+                    grammarErrors.appendChild(translationText);
+                    grammarErrors.appendChild(errorList);
+                } else {
+                    // 无错误：显示翻译并标记为无错误
+                    highlightedTranslations.push(translation);
+                    translationText.innerHTML = `<em>你的翻译：${translation}</em>
+                        <div class="no-error-indicator" style="color: #28a745; margin-top: 5px; font-size: 0.9em;">
+                            ✓ 无明显错误
+                        </div>`;
+                    grammarErrors.appendChild(translationText);
+                }
+            } else {
+                // 如果grammarErrors不存在，仍然需要添加翻译
+                if (errorItem && errorItem.errors.length > 0) {
+                    const highlightedTranslation = addHighlight(translation, errorItem.errors);
+                    highlightedTranslations.push(highlightedTranslation);
+                } else {
+                    highlightedTranslations.push(translation);
+                }
+            }
+        }
         
         // 统计错误类型
         const errorTypeCount = {};
@@ -1398,8 +2404,13 @@ function showResult(timeString, score, detailedErrors) {
 * 翻译完整度：${Math.round((detailedErrors.length / (currentMode === 'sentence' ? sentences.length : 1)) * 100)}%${errorStats}\n**建议：**\n- 重点关注${Object.keys(errorTypeCount).join('、')}等方面的问题\n- 多读多练，提高对语法和词汇的掌握\n- 注意翻译的流畅性和准确性`;
     }
     
+    // 如果提供了覆盖的AI评语，使用它
+    if (aiEvaluationTextOverride) {
+        aiEvaluationText = aiEvaluationTextOverride;
+    }
+    
     // 设置带高亮的翻译文本
-    translatedText.innerHTML = highlightedTranslations.join('<br><br>');
+    if (translatedText) translatedText.innerHTML = highlightedTranslations.join('<br><br>');
     
     // 渲染并显示AI评语
     const aiEvaluationElement = document.getElementById('ai-evaluation');
@@ -1408,19 +2419,30 @@ function showResult(timeString, score, detailedErrors) {
     }
     
     // 显示结果区域
-    showSection(resultSection);
-    hideSection(currentMode === 'sentence' ? sentencePractice : passagePractice);
+    if (resultSection) {
+        showSection(resultSection);
+        if (currentMode === 'sentence' && sentencePractice) {
+            hideSection(sentencePractice);
+        } else if (passagePractice) {
+            hideSection(passagePractice);
+        }
+    }
 }
 
 // 返回模式选择
+// 返回选择
 function backToSelection() {
-    // 在模式选择区域添加返回文章选择的按钮
-    const modeButtons = document.querySelector('.mode-buttons');
-    if (!document.getElementById('back-to-passage')) {
-        modeButtons.appendChild(backToPassageBtn);
+    if (window.location.pathname.endsWith('4_evaluation.html') || 
+        window.location.pathname.endsWith('4_result.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('3_mode_selection.html');
+        } else {
+            window.location.href = '3_mode_selection.html';
+        }
+    } else {
+        showSection(modeSelection);
+        hideSection(resultSection);
     }
-    showSection(modeSelection);
-    hideSection(resultSection);
 }
 
 // 上传新文件
@@ -1431,32 +2453,299 @@ function uploadNewFile() {
     userTranslations = [];
     
     // 清空输入
-    wordFile.value = '';
-    englishInput.value = '';
-    passageInput.value = '';
+    if (wordFile) wordFile.value = '';
+    if (englishInput) englishInput.value = '';
+    if (passageInput) passageInput.value = '';
     
     // 重置计时器
-    timer.textContent = '00:00:00';
+    if (timer) timer.textContent = '00:00:00';
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
     }
     
-    // 显示上传区域
-    showSection(uploadSection);
-    hideSection(resultSection);
+    // 重置状态
+    appState = {
+        passages: [],
+        currentPassageIndex: 0,
+        sentenceSplits: null,
+        currentSplitType: 'byLine',
+        shouldShowMenu: false,
+        selectedPassages: [],
+        userTranslations: [],
+        currentSentenceIndex: 0
+    };
+    saveAppState();
+    
+    // 如果当前页面是结果页面、分句练习页面或整篇练习页面，则跳转到上传页面
+    if (window.location.pathname.endsWith('4_evaluation.html') || 
+        window.location.pathname.endsWith('4_result.html') ||
+        window.location.pathname.endsWith('4_sentence_practice.html') || 
+        window.location.pathname.endsWith('4_passage_practice.html')) {
+        if (window.PageTransition) {
+            PageTransition.transitionTo('1_upload.html');
+        } else {
+            window.location.href = '1_upload.html';
+        }
+    } else {
+        // 显示上传区域
+        showSection(uploadSection);
+        hideSection(resultSection);
+    }
 }
 
 // 显示指定区域
 function showSection(section) {
     section.classList.remove('hidden');
     section.classList.add('active');
+    
+    // 保存当前视图
+    currentView = section.id;
+}
+
+// 文本选择事件处理
+function handleTextSelection() {
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    
+    // 检查当前是否在结果展示区域
+    const resultSection = document.getElementById('result-section');
+    if (!resultSection || !resultSection.classList.contains('active')) {
+        return;
+    }
+    
+    // 获取选择区域的父元素
+    const anchorNode = selection.anchorNode;
+    if (!anchorNode) return;
+    
+    const parentElement = anchorNode.nodeType === 3 ? anchorNode.parentNode : anchorNode;
+    
+    // 检查选择是否在翻译文本或AI审文中
+    const isInResultArea = parentElement.closest('#translated-text') || 
+                          parentElement.closest('#ai-evaluation') || 
+                          parentElement.closest('#grammar-errors');
+    
+    if (!isInResultArea) return;
+    
+    // 处理英文单词或短语选择
+    if (text && text.length > 1) {
+        selectedText = text;
+        showSelectedTextInDialog();
+        fetchWordDetails(text);
+    }
+}
+
+// 在对话框中显示选中文本
+function showSelectedTextInDialog() {
+    const selectedTextEl = document.getElementById('selected-text');
+    selectedTextEl.innerHTML = `
+        <h4>已选中</h4>
+        <p>"${selectedText}"</p>
+    `;
+}
+
+// 获取单词详细信息
+async function fetchWordDetails(text) {
+    if (!/^[a-zA-Z\s]+$/.test(text)) {
+        hideWordCard();
+        return;
+    }
+    
+    try {
+        selectedWordData = await window.translationDictionary.getChineseDefinition(text);
+        displayWordDetails();
+    } catch (error) {
+        console.error('获取单词信息失败:', error);
+        hideWordCard();
+    }
+}
+
+// 显示单词详细信息
+function displayWordDetails() {
+    if (!selectedWordData) {
+        hideWordCard();
+        return;
+    }
+    
+    const wordCard = document.getElementById('selected-word-card');
+    const cardWord = document.getElementById('card-word');
+    const cardPhonetic = document.getElementById('card-phonetic');
+    const translationContent = document.getElementById('translation-content');
+    const examplesContent = document.getElementById('examples-content');
+    
+    cardWord.textContent = selectedWordData.word;
+    cardPhonetic.textContent = selectedWordData.phonetic || selectedWordData.phonetics?.[0]?.text || '';
+    
+    let translationHTML = '';
+    const meanings = selectedWordData.meanings || [];
+    
+    meanings.forEach(meaning => {
+        const partOfSpeech = meaning.partOfSpeech;
+        const chineseText = meaning.chinese;
+        
+        if (chineseText) {
+            translationHTML += `
+                <div class="translation-item">
+                    ${partOfSpeech ? `<div class="part-of-speech">${partOfSpeech}</div>` : ''}
+                    <div class="chinese">${chineseText}</div>
+                </div>
+            `;
+        }
+    });
+    
+    translationContent.innerHTML = translationHTML;
+    
+    let examplesHTML = '';
+    let exampleCount = 0;
+    const examples = selectedWordData.examples || [];
+    
+    examples.forEach(example => {
+        if (exampleCount >= 3) return;
+        
+        const englishText = example.english || example.example || '';
+        const chineseText = example.chinese || example.translation || '';
+        
+        if (englishText && chineseText) {
+            examplesHTML += `
+                <div class="example-item">
+                    <div class="english">${englishText}</div>
+                    <div class="chinese">${chineseText}</div>
+                </div>
+            `;
+            exampleCount++;
+        }
+    });
+    
+    if (examplesHTML === '') {
+        examplesHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无例句</p>';
+    }
+    
+    examplesContent.innerHTML = examplesHTML;
+    
+    wordCard.style.display = 'block';
+}
+
+// 隐藏单词卡片
+function hideWordCard() {
+    const wordCard = document.getElementById('selected-word-card');
+    wordCard.style.display = 'none';
+}
+
+// 使用Free Dictionary API获取单词信息
+async function fetchWordInfo(word) {
+    try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        if (!response.ok) {
+            throw new Error('单词不存在');
+        }
+        
+        const data = await response.json();
+        const wordInfo = data[0];
+        
+        // 提取单词信息
+        const phonetic = wordInfo.phonetics?.[0]?.text || '';
+        const meanings = wordInfo.meanings.map(meaning => {
+            return {
+                partOfSpeech: meaning.partOfSpeech,
+                definitions: meaning.definitions.map(def => ({
+                    definition: def.definition,
+                    example: def.example || ''
+                }))
+            };
+        });
+        
+        return {
+            word: wordInfo.word,
+            phonetic,
+            meanings,
+            addedAt: new Date().toISOString(),
+            frequency: 1
+        };
+    } catch (error) {
+        console.error('获取单词信息失败:', error);
+        // 如果API调用失败，返回基本的单词信息
+        return {
+            word,
+            phonetic: '',
+            meanings: [{ partOfSpeech: 'unknown', definitions: [{ definition: '', example: '' }] }],
+            addedAt: new Date().toISOString(),
+            frequency: 1
+        };
+    }
+}
+
+// 添加单词到单词本
+async function addWordToWordbook() {
+    if (!selectedWordData) return;
+    
+    const word = selectedWordData.word;
+    
+    // 检查单词是否已存在
+    const existingWordIndex = wordbook.findIndex(w => w.word.toLowerCase() === word.toLowerCase());
+    
+    if (existingWordIndex >= 0) {
+        // 已存在，更新完整信息并增加频率
+        wordbook[existingWordIndex] = {
+            ...selectedWordData,
+            frequency: (wordbook[existingWordIndex].frequency || 0) + 1,
+            lastReviewed: new Date().toISOString(),
+            addedAt: wordbook[existingWordIndex].addedAt || new Date().toISOString()
+        };
+    } else {
+        // 不存在，保存完整单词信息
+        const wordInfo = {
+            word: selectedWordData.word,
+            phonetic: selectedWordData.phonetic || '',
+            meanings: selectedWordData.meanings || [],
+            examples: selectedWordData.examples || [],
+            usage: selectedWordData.usage || {},
+            source: selectedWordData.source || 'tencent',
+            addedAt: new Date().toISOString(),
+            frequency: 1
+        };
+        wordbook.push(wordInfo);
+    }
+    
+    // 保存到localStorage
+    saveWordbook();
+    
+    alert(`单词"${word}"已添加到单词本`);
+}
+
+// 保存单词本到localStorage
+function saveWordbook() {
+    localStorage.setItem('wordbook', JSON.stringify(wordbook));
+    updateWordbookStats();
+}
+
+// 更新单词本统计信息
+function updateWordbookStats() {
+    if (totalWordsEl) {
+        totalWordsEl.textContent = wordbook.length;
+    }
 }
 
 // 隐藏指定区域
 function hideSection(section) {
     section.classList.remove('active');
     section.classList.add('hidden');
+}
+
+
+
+// 初始化单词本功能
+function initWordbook() {
+    // 添加文本选择事件监听器
+    document.addEventListener('mouseup', handleTextSelection);
+    
+    // 添加到单词本按钮事件
+    const addToWordbookBtn = document.getElementById('add-to-wordbook-btn');
+    if (addToWordbookBtn) {
+        addToWordbookBtn.addEventListener('click', addWordToWordbook);
+    }
+    
+    // 初始化时更新单词本统计
+    updateWordbookStats();
 }
 
 // 日志记录功能
@@ -2419,50 +3708,354 @@ function parseDeepSeekResponse(responseContent) {
     return result;
 }
 
+// 初始化练习页面
+function initPracticePage() {
+    // 恢复状态
+    loadAppState();
+    
+    // 检查当前页面类型
+    const isSentencePractice = window.location.pathname.endsWith('4_sentence_practice.html');
+    const isPassagePractice = window.location.pathname.endsWith('4_passage_practice.html');
+    
+    if (isSentencePractice) {
+        // 初始化分句练习页面
+        sentences = appState.sentences || [];
+        currentSentenceIndex = appState.currentSentenceIndex || 0;
+        userTranslations = appState.userTranslations || [];
+        currentSplitType = appState.currentSplitType || 'byLine';
+        shouldShowMenu = appState.shouldShowMenu || false;
+        
+        // 如果sentences为空，尝试从sentenceSplits恢复
+        if (sentences.length === 0 && appState.sentenceSplits) {
+            sentences = appState.sentenceSplits[currentSplitType];
+        }
+        
+        // 更新当前句子
+        if (sentences.length > 0) {
+            updateCurrentSentence();
+        }
+        
+        // 根据shouldShowMenu决定是否显示练习模式选择器
+        if (practiceModeSelector) {
+            if (shouldShowMenu) {
+                practiceModeSelector.classList.remove('hidden');
+            } else {
+                practiceModeSelector.classList.add('hidden');
+            }
+        }
+        
+        // 开始计时
+        startTimer();
+        
+        // 聚焦输入框
+        if (englishInput) englishInput.focus();
+        
+        // 添加返回模式选择的事件监听器
+        const backToModeBtn = document.getElementById('back-to-mode');
+        if (backToModeBtn) {
+            backToModeBtn.addEventListener('click', () => {
+                window.location.href = '3_mode_selection.html';
+            });
+        }
+    } else if (isPassagePractice) {
+        // 初始化整篇练习页面
+        if (passages && appState.currentPassageIndex >= 0) {
+            const passageText = passages[appState.currentPassageIndex].replace(/\n/g, ' ');
+            if (chinesePassage) chinesePassage.innerHTML = passageText;
+        }
+        
+        // 开始计时
+        startTimer();
+        
+        // 聚焦输入框
+        if (passageInput) passageInput.focus();
+        
+        // 添加返回模式选择的事件监听器
+        const backToModeBtn = document.getElementById('back-to-mode');
+        if (backToModeBtn) {
+            backToModeBtn.addEventListener('click', () => {
+                window.location.href = '3_mode_selection.html';
+            });
+        }
+    }
+}
+
+// 初始化文档选择页面
+function initDocumentSelectionPage() {
+    // 恢复状态
+    loadAppState();
+    
+    // 重新渲染文章列表
+    if (passageList) {
+        showPassageSelection();
+    }
+    
+    // 添加返回上传页面的事件监听器
+    const backToUploadBtn = document.getElementById('back-to-upload');
+    if (backToUploadBtn) {
+        backToUploadBtn.addEventListener('click', () => {
+            window.location.href = '1_upload.html';
+        });
+    }
+}
+
+// 初始化模式选择页面
+function initModeSelectionPage() {
+    // 恢复状态
+    loadAppState();
+}
+
+// 初始化评估结果页面
+function initResultPage() {
+    // 检查是否是查看历史版本
+    const urlParams = new URLSearchParams(window.location.search);
+    const isHistoryVersion = urlParams.get('historyVersion') === 'true';
+    
+    if (isHistoryVersion) {
+        // 从sessionStorage加载历史版本数据
+        const historyVersion = JSON.parse(sessionStorage.getItem('historyVersionToView'));
+        
+        if (historyVersion) {
+            // 恢复历史版本数据
+            currentMode = historyVersion.mode;
+            userTranslations = historyVersion.translations;
+            passages = [historyVersion.passageContent];
+            currentPassageIndex = 0;
+            
+            // 显示历史版本信息
+            showHistoryVersionResult(historyVersion);
+            
+            // 显示返回历史按钮，隐藏其他按钮
+            const backToHistoryBtn = document.getElementById('back-to-history');
+            const backToSelectBtn = document.getElementById('back-to-select');
+            const uploadNewBtn = document.getElementById('upload-new');
+            
+            if (backToHistoryBtn) {
+                backToHistoryBtn.style.display = 'inline-block';
+                backToHistoryBtn.addEventListener('click', function() {
+                    window.location.href = 'translation-history.html';
+                });
+            }
+            
+            if (backToSelectBtn) {
+                backToSelectBtn.style.display = 'none';
+            }
+            
+            if (uploadNewBtn) {
+                uploadNewBtn.style.display = 'none';
+            }
+        }
+    } else {
+        // 从localStorage加载评估结果
+        const evaluationResult = JSON.parse(localStorage.getItem('evaluationResult'));
+        
+        if (evaluationResult) {
+            // 先恢复当前模式和用户翻译
+            currentMode = evaluationResult.currentMode;
+            userTranslations = evaluationResult.userTranslations;
+            
+            // 然后显示结果（此时userTranslations已经被恢复）
+            showResult(evaluationResult.timeString, evaluationResult.score, evaluationResult.detailedErrors, evaluationResult.aiEvaluationText);
+        }
+        
+        // 隐藏返回历史按钮
+        const backToHistoryBtn = document.getElementById('back-to-history');
+        if (backToHistoryBtn) {
+            backToHistoryBtn.style.display = 'none';
+        }
+    }
+    
+    // 初始化单词本功能（用于文本选择和添加到单词本）
+    initWordbook();
+}
+
+// 显示历史版本结果
+function showHistoryVersionResult(historyVersion) {
+    // 设置结果
+    if (resultTime) {
+        const timeString = new Date(historyVersion.timestamp).toLocaleString();
+        resultTime.textContent = timeString;
+    }
+    
+    if (resultScore) {
+        // 如果历史版本中有评分，使用它；否则显示"历史记录"
+        resultScore.textContent = historyVersion.score ? `${historyVersion.score}/100` : '历史记录';
+    }
+    
+    // 如果有详细的错误信息，使用showResult函数显示完整内容
+    if (historyVersion.detailedErrors && historyVersion.detailedErrors.length >= 0) {
+        showResult(historyVersion.timeString || new Date(historyVersion.timestamp).toLocaleString(), 
+                   historyVersion.score || 0, 
+                   historyVersion.detailedErrors,
+                   historyVersion.aiEvaluation);
+    } else {
+        // 如果没有详细错误信息，显示基本的历史版本信息
+        if (grammarErrors) {
+            grammarErrors.innerHTML = '';
+            const li = document.createElement('li');
+            li.textContent = `这是历史翻译记录，保存于 ${new Date(historyVersion.timestamp).toLocaleString()}`;
+            li.style.backgroundColor = '#e2e3e5';
+            li.style.borderColor = '#d6d8db';
+            li.style.color = '#383d41';
+            grammarErrors.appendChild(li);
+        }
+        
+        // 显示AI评语
+        const aiEvaluation = document.getElementById('ai-evaluation');
+        if (aiEvaluation) {
+            aiEvaluation.innerHTML = `
+                <p><strong>翻译模式：</strong>${historyVersion.mode === 'sentence' ? '分句翻译' : '整篇翻译'}</p>
+                <p><strong>文件名：</strong>${historyVersion.filename}</p>
+                <p><strong>描述：</strong>${historyVersion.description}</p>
+                <p><strong>保存时间：</strong>${new Date(historyVersion.timestamp).toLocaleString()}</p>
+            `;
+        }
+    }
+    
+    // 显示翻译文本
+    if (translatedText) {
+        translatedText.innerHTML = '';
+        historyVersion.translations.forEach((translation, index) => {
+            const p = document.createElement('p');
+            p.style.marginBottom = '15px';
+            p.style.lineHeight = '1.6';
+            
+            if (historyVersion.mode === 'sentence') {
+                p.innerHTML = `<strong>句子 ${index + 1}：</strong><br>${translation}`;
+            } else {
+                p.innerHTML = `<strong>翻译内容：</strong><br>${translation}`;
+            }
+            
+            translatedText.appendChild(p);
+        });
+    }
+}
+
+// 修改现有的DOMContentLoaded事件监听器
 // 页面加载完成后初始化
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', function() {
+    // 检查URL参数或sessionStorage，是否需要重新加载历史文件
+    checkForReloadHistoryFile();
+    
+    // 检查当前页面类型并调用相应的初始化函数
+    const isSentencePractice = window.location.pathname.endsWith('4_sentence_practice.html');
+    const isPassagePractice = window.location.pathname.endsWith('4_passage_practice.html');
+    const isDocumentSelection = window.location.pathname.endsWith('2_document_selection.html');
+    const isModeSelection = window.location.pathname.endsWith('3_mode_selection.html');
+    const isResultPage = window.location.pathname.endsWith('4_result.html');
+    const isEvaluationPage = window.location.pathname.endsWith('4_evaluation.html');
+    
+    if (isSentencePractice || isPassagePractice) {
+        initPracticePage();
+    } else if (isDocumentSelection) {
+        initDocumentSelectionPage();
+    } else if (isModeSelection) {
+        initModeSelectionPage();
+    } else if (isResultPage) {
+        initResultPage();
+    } else if (isEvaluationPage) {
+        initResultPage(); // 评价页面使用相同的初始化逻辑
+    }
+    
+    // 调用原有的初始化函数
     initEventListeners();
     loadApiKey(); // 加载已保存的API密钥
+    initWordbook(); // 初始化单词本功能
 });
 
-// 引入外部库（JSZip）
-const script1 = document.createElement('script');
-script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-document.head.appendChild(script1);
-
+// 检查是否需要重新加载历史文件
+function checkForReloadHistoryFile() {
+    // 检查URL参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const reloadFile = urlParams.get('reloadFile');
+    
+    if (reloadFile === 'true') {
+        // 从sessionStorage获取历史文件数据
+        const reloadedFileData = sessionStorage.getItem('reloadedHistoryFile');
+        if (reloadedFileData) {
+            try {
+                const fileData = JSON.parse(reloadedFileData);
+                
+                // 保存历史文件数据到应用状态
+                if (fileData.content && Array.isArray(fileData.content)) {
+                    passages = fileData.content;
+                    appState.passages = passages;
+                    saveAppState();
+                    
+                    // 跳转到文档选择页面
+                    if (window.PageTransition) {
+                        PageTransition.transitionTo('2_document_selection.html');
+                    } else {
+                        window.location.href = '2_document_selection.html';
+                    }
+                }
+            } catch (error) {
+                console.error('Error reloading history file:', error);
+            }
+            
+            // 清除sessionStorage中的数据
+            sessionStorage.removeItem('reloadedHistoryFile');
+        }
+    }
+}
 // 主题切换功能
 function initThemeToggle() {
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
     const themePanel = document.getElementById('theme-panel');
     const closeThemePanel = document.getElementById('close-theme-panel');
     const colorOptions = document.querySelectorAll('.color-option');
-    const panelDarkModeToggle = document.getElementById('dark-mode-toggle');
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     
     // 加载用户保存的主题设置
     loadThemeSettings();
     
     // 切换主题面板显示/隐藏
-    themeToggleBtn.addEventListener('click', () => {
-        themePanel.classList.toggle('hidden');
-        themeToggleBtn.setAttribute('aria-expanded', !themePanel.classList.contains('hidden'));
-    });
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            if (themePanel) {
+                themePanel.classList.toggle('hidden');
+                themeToggleBtn.setAttribute('aria-expanded', !themePanel.classList.contains('hidden'));
+            }
+        });
+        
+        // 键盘导航支持
+        themeToggleBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                themeToggleBtn.click();
+            }
+            if (e.key === 'Escape') {
+                if (themePanel) {
+                    themePanel.classList.add('hidden');
+                    themeToggleBtn.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    }
     
     // 关闭主题面板
-    closeThemePanel.addEventListener('click', () => {
-        themePanel.classList.add('hidden');
-        themeToggleBtn.setAttribute('aria-expanded', 'false');
-    });
+    if (closeThemePanel) {
+        closeThemePanel.addEventListener('click', () => {
+            if (themePanel) {
+                themePanel.classList.add('hidden');
+                if (themeToggleBtn) {
+                    themeToggleBtn.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    }
     
     // 点击页面其他地方关闭主题面板
-    document.addEventListener('click', (e) => {
-        if (!themePanel.classList.contains('hidden') && 
-            !themeToggleBtn.contains(e.target) && 
-            !themePanel.contains(e.target)) {
-            themePanel.classList.add('hidden');
-            themeToggleBtn.setAttribute('aria-expanded', 'false');
-        }
-    });
+    if (themePanel && themeToggleBtn) {
+        document.addEventListener('click', (e) => {
+            if (!themePanel.classList.contains('hidden') && 
+                !themeToggleBtn.contains(e.target) && 
+                !themePanel.contains(e.target)) {
+                themePanel.classList.add('hidden');
+                themeToggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
     
     // 主题颜色切换
     colorOptions.forEach(option => {
@@ -2478,41 +4071,29 @@ function initThemeToggle() {
         });
     });
     
-    // 主题面板中的暗黑模式切换
-    panelDarkModeToggle.addEventListener('click', () => {
-        toggleDarkMode();
-    });
-    
     // 独立模式切换按钮的事件监听
-    modeToggleBtn.addEventListener('click', () => {
-        toggleDarkMode();
-    });
-    
-    // 独立模式切换按钮的键盘支持
-    modeToggleBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            modeToggleBtn.click();
-        }
-    });
-    
-    // 键盘导航支持
-    themeToggleBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            themeToggleBtn.click();
-        }
-        if (e.key === 'Escape') {
-            themePanel.classList.add('hidden');
-            themeToggleBtn.setAttribute('aria-expanded', 'false');
-        }
-    });
+    if (modeToggleBtn) {
+        modeToggleBtn.addEventListener('click', () => {
+            toggleDarkMode();
+        });
+        
+        // 独立模式切换按钮的键盘支持
+        modeToggleBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                modeToggleBtn.click();
+            }
+        });
+    }
 }
 
 // 设置主题颜色
 function setThemeColor(color) {
     document.documentElement.setAttribute('data-theme', color);
     localStorage.setItem('theme_color', color);
+    
+    // 更新加载指示器的颜色（如果存在）
+    updateLoadingIndicatorTheme();
 }
 
 // 切换暗黑模式
@@ -2522,19 +4103,15 @@ function toggleDarkMode() {
     document.documentElement.setAttribute('data-dark-mode', newMode);
     localStorage.setItem('dark_mode', newMode);
     
-    // 更新主题面板中的模式切换按钮
-    const panelDarkModeToggle = document.getElementById('dark-mode-toggle');
-    if (panelDarkModeToggle) {
-        panelDarkModeToggle.textContent = newMode === 'true' ? '☀️' : '🌙';
-        panelDarkModeToggle.setAttribute('aria-pressed', newMode);
-    }
-    
     // 更新独立的模式切换按钮
     const modeToggleBtn = document.getElementById('mode-toggle-btn');
     if (modeToggleBtn) {
         modeToggleBtn.textContent = newMode === 'true' ? '☀️' : '🌙';
         modeToggleBtn.setAttribute('aria-pressed', newMode);
     }
+    
+    // 更新加载指示器的主题（如果存在）
+    updateLoadingIndicatorTheme();
 }
 
 // 加载主题设置
@@ -2553,13 +4130,6 @@ function loadThemeSettings() {
     // 加载暗黑模式
     const savedDarkMode = localStorage.getItem('dark_mode') || 'false';
     document.documentElement.setAttribute('data-dark-mode', savedDarkMode);
-    
-    // 更新主题面板中的模式切换按钮
-    const panelDarkModeToggle = document.getElementById('dark-mode-toggle');
-    if (panelDarkModeToggle) {
-        panelDarkModeToggle.textContent = savedDarkMode === 'true' ? '☀️' : '🌙';
-        panelDarkModeToggle.setAttribute('aria-pressed', savedDarkMode);
-    }
     
     // 更新独立的模式切换按钮
     const modeToggleBtn = document.getElementById('mode-toggle-btn');

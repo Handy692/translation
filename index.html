@@ -4,13 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英语翻译练习网站</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>英语翻译练习</h1>
-            <div class="timer" id="timer">00:00:00</div>
+            <div class="header-left">
+                <h1>英语翻译练习</h1>
+                <div class="timer" id="timer">00:00:00</div>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="home-btn flat-btn" title="返回主页">🏠</a>
+                <a href="wordbook.html" id="wordbook-icon" class="wordbook-icon" title="单词本">📚</a>
+                <a href="translation-history.html" id="history-icon" class="history-btn flat-btn" title="翻译历史">📜</a>
+                <button id="install-app-btn" class="install-btn flat-btn hidden" title="安装应用">📥</button>
+            </div>
         </header>
 
         <!-- 文件上传区域 -->
@@ -56,7 +66,13 @@
         <section id="mode-selection" class="hidden">
             <h2>选择练习模式</h2>
             <div class="mode-buttons">
-                <button id="sentence-mode-btn" class="mode-btn">分句练习</button>
+                <div class="mode-btn-container">
+                    <button id="sentence-mode-btn" class="mode-btn">分句练习</button>
+                    <div id="sentence-mode-dropdown" class="mode-dropdown hidden">
+                        <div class="dropdown-option" data-mode="byPeriod">整句</div>
+                        <div class="dropdown-option" data-mode="byLine">自定义</div>
+                    </div>
+                </div>
                 <button id="passage-mode-btn" class="mode-btn">整篇练习</button>
             </div>
         </section>
@@ -64,6 +80,13 @@
         <!-- 分句练习区域 -->
         <section id="sentence-practice" class="hidden">
             <h2>分句翻译练习</h2>
+            <div id="practice-mode-selector" class="hidden">
+                <label for="practice-mode">练习模式：</label>
+                <select id="practice-mode">
+                    <option value="byLine">自定义练习</option>
+                    <option value="byPeriod">整句练习</option>
+                </select>
+            </div>
             <div class="sentence-container">
                 <div class="chinese-sentence" id="current-chinese"></div>
                 <input type="text" id="english-input" placeholder="请输入英文翻译..." autocomplete="off">
@@ -103,32 +126,66 @@
         <!-- 结果展示区域 -->
         <section id="result-section" class="hidden">
             <h2>翻译结果与评分</h2>
-            <div class="result-container">
-                <div class="result-item">
-                    <h3>用时</h3>
-                    <p id="result-time">00:00:00</p>
+            <div class="result-main">
+                <div class="result-content">
+                    <div class="result-container">
+                        <div class="result-item">
+                            <h3>用时</h3>
+                            <p id="result-time">00:00:00</p>
+                        </div>
+                        <div class="result-item">
+                            <h3>评分</h3>
+                            <p id="result-score">0/100</p>
+                        </div>
+                        <div class="result-item">
+                            <h3>AI审文</h3>
+                            <ul id="grammar-errors"></ul>
+                        </div>
+                        <div class="result-item">
+                            <h3>AI评语</h3>
+                            <div id="ai-evaluation" class="ai-evaluation"></div>
+                        </div>
+                        <div class="result-item">
+                            <h3>翻译文本</h3>
+                            <div id="translated-text"></div>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="back-to-select">返回选择</button>
+                        <button id="upload-new">上传新文档</button>
+                        <button id="download-pdf-btn" class="pdf-btn">下载存档PDF</button>
+                    </div>
                 </div>
-                <div class="result-item">
-                    <h3>评分</h3>
-                    <p id="result-score">0/100</p>
+                <!-- 右侧单词卡片对话框 -->
+                <div class="word-dialog">
+                    <div class="dialog-header">
+                        <h3>单词详情</h3>
+                    </div>
+                    <div class="dialog-content">
+                        <div class="selected-text" id="selected-text">
+                            <p>选择文本查看详情</p>
+                        </div>
+                        <div class="word-card" id="selected-word-card" style="display: none;">
+                            <div class="word-card-header">
+                                <div class="word-info">
+                                    <h4 id="card-word"></h4>
+                                    <div class="phonetic" id="card-phonetic"></div>
+                                </div>
+                                <button id="add-to-wordbook-btn" class="add-btn">添加到单词本</button>
+                            </div>
+                            <div class="word-card-body">
+                                <div class="translation">
+                                    <h5>英汉互译</h5>
+                                    <div id="translation-content"></div>
+                                </div>
+                                <div class="examples">
+                                    <h5>相关例句</h5>
+                                    <div id="examples-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="result-item">
-                    <h3>AI审文</h3>
-                    <ul id="grammar-errors"></ul>
-                </div>
-                <div class="result-item">
-                    <h3>AI评语</h3>
-                    <div id="ai-evaluation" class="ai-evaluation"></div>
-                </div>
-                <div class="result-item">
-                    <h3>翻译文本</h3>
-                    <div id="translated-text"></div>
-                </div>
-            </div>
-            <div class="action-buttons">
-                <button id="back-to-select">返回选择</button>
-                <button id="upload-new">上传新文档</button>
-                <button id="download-pdf-btn" class="pdf-btn">下载存档PDF</button>
             </div>
         </section>
     </div>
@@ -138,9 +195,12 @@
         <p class="copyright">本网页由AI生成，生成者本人不懂网页开发，最初目标只是自用，大神海涵</p>
     </footer>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="html2canvas.min.js"></script>
-    <script src="script.js"></script>
+    <script src="config.js"></script>
+    <script src="enhanced-translation.js"></script>
+    <script src="script.js?v=4"></script>
     <!-- 日志面板切换按钮 -->
     <button id="toggle-log-btn" title="显示/隐藏日志">📋</button>
     
@@ -166,10 +226,19 @@
                 <button class="color-option" data-color="purple" style="background-color: #9C27B0" title="紫色主题" aria-pressed="false"></button>
             </div>
         </div>
-        <div class="theme-mode">
-            <h4>显示模式</h4>
-            <button id="dark-mode-toggle" class="mode-toggle" aria-label="切换暗黑模式" aria-pressed="false">🌙</button>
-        </div>
     </div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
