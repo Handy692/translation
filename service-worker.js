@@ -1,32 +1,32 @@
 const CACHE_NAME = 'translation-practice-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/1_upload.html',
-  '/2_document_selection.html',
-  '/3_mode_selection.html',
-  '/4_sentence_practice.html',
-  '/4_passage_practice.html',
-  '/4_evaluation.html',
-  '/4_result.html',
-  '/translation-history.html',
-  '/wordbook.html',
-  '/styles.css',
-  '/script.js',
-  '/config.js',
-  '/enhanced-translation.js',
-  '/mymemory-translation.js',
-  '/html2canvas.min.js',
-  '/manifest.json',
-  '/icons/icon-72x72.png',
-  '/icons/icon-96x96.png',
-  '/icons/icon-128x128.png',
-  '/icons/icon-144x144.png',
-  '/icons/icon-152x152.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-384x384.png',
-  '/icons/icon-512x512.png',
-  '/icons/icon.svg'
+  './',
+  './index.html',
+  './1_upload.html',
+  './2_document_selection.html',
+  './3_mode_selection.html',
+  './4_sentence_practice.html',
+  './4_passage_practice.html',
+  './4_evaluation.html',
+  './4_result.html',
+  './translation-history.html',
+  './wordbook.html',
+  './styles.css',
+  './script.js',
+  './config.js',
+  './enhanced-translation.js',
+  './mymemory-translation.js',
+  './html2canvas.min.js',
+  './manifest.json',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
+  './icons/icon-192x192.png',
+  './icons/icon-384x384.png',
+  './icons/icon-512x512.png',
+  './icons/icon.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -80,7 +80,7 @@ self.addEventListener('fetch', event => {
           }
         ).catch(() => {
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           }
         });
       })

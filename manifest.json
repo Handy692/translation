@@ -2,12 +2,12 @@
   "name": "英语翻译练习",
   "short_name": "翻译练习",
   "description": "英语翻译练习Web应用，支持文件上传、分句练习和整篇练习模式",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196F3",
   "orientation": "portrait-primary",
-  "scope": "/",
+  "scope": "./",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
