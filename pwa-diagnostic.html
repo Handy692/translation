@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA诊断工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2196F3;
+            margin-bottom: 30px;
+        }
+        .test-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-left: 4px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .test-item.pass {
+            border-left-color: #4CAF50;
+            background-color: #f1f8f4;
+        }
+        .test-item.fail {
+            border-left-color: #f44336;
+            background-color: #fef1f0;
+        }
+        .test-item.warning {
+            border-left-color: #ff9800;
+            background-color: #fff8f1;
+        }
+        .test-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status.fail {
+            background-color: #f44336;
+            color: white;
+        }
+        .status.warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        .button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #1976D2;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+        }
+        .summary h2 {
+            color: #1976D2;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 PWA安装诊断工具</h1>
+        
+        <div id="tests"></div>
+        
+        <div class="summary">
+            <h2>📊 诊断总结</h2>
+            <div id="summary"></div>
+        </div>
+        
+        <button class="button" onclick="runTests()">🔄 重新检测</button>
+    </div>
+
+    <script>
+        async function runTests() {
+            const tests = [];
+            const testsContainer = document.getElementById('tests');
+            const summaryContainer = document.getElementById('summary');
+            testsContainer.innerHTML = '';
+            
+            // 测试1: HTTPS检查
+            const httpsTest = {
+                title: 'HTTPS协议',
+                pass: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+                details: `当前协议: ${location.protocol}\n主机名: ${location.hostname}`
+            };
+            tests.push(httpsTest);
+            
+            // 测试2: Service Worker支持
+            const swTest = {
+                title: 'Service Worker支持',
+                pass: 'serviceWorker' in navigator,
+                details: `navigator.serviceWorker: ${'serviceWorker' in navigator ? '✓ 支持' : '✗ 不支持'}`
+            };
+            tests.push(swTest);
+            
+            // 测试3: Manifest检查
+            let manifestTest = {
+                title: 'Manifest文件',
+                pass: false,
+                details: ''
+            };
+            
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]');
+                if (manifestLink) {
+                    const manifestUrl = manifestLink.href;
+                    const response = await fetch(manifestUrl);
+                    if (response.ok) {
+                        const manifest = await response.json();
+                        manifestTest.pass = true;
+                        manifestTest.details = `✓ Manifest加载成功\nURL: ${manifestUrl}\n\n内容:\n${JSON.stringify(manifest, null, 2)}`;
+                    } else {
+                        manifestTest.details = `✗ Manifest加载失败\nURL: ${manifestUrl}\n状态码: ${response.status}`;
+                    }
+                } else {
+                    manifestTest.details = '✗ 未找到manifest链接';
+                }
+            } catch (error) {
+                manifestTest.details = `✗ Manifest检查出错: ${error.message}`;
+            }
+            tests.push(manifestTest);
+            
+            // 测试4: Service Worker注册状态
+            let swRegistrationTest = {
+                title: 'Service Worker注册',
+                pass: false,
+                details: ''
+            };
+            
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    swRegistrationTest.pass = true;
+                    swRegistrationTest.details = `✓ Service Worker已注册\n状态: ${registration.active ? 'active' : registration.waiting ? 'waiting' : registration.installing ? 'installing' : 'unknown'}\n作用域: ${registration.scope}`;
+                } else {
+                    swRegistrationTest.details = '✗ Service Worker未注册';
+                }
+            } catch (error) {
+                swRegistrationTest.details = `✗ Service Worker检查出错: ${error.message}`;
+            }
+            tests.push(swRegistrationTest);
+            
+            // 测试5: 图标检查
+            let iconsTest = {
+                title: '图标文件',
+                pass: false,
+                details: ''
+            };
+            
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]');
+                if (manifestLink) {
+                    const manifestUrl = manifestLink.href;
+                    const response = await fetch(manifestUrl);
+                    if (response.ok) {
+                        const manifest = await response.json();
+                        const icons = manifest.icons || [];
+                        if (icons.length > 0) {
+                            let iconResults = [];
+                            for (const icon of icons) {
+                                try {
+                                    const iconUrl = new URL(icon.src, manifestUrl).href;
+                                    const iconResponse = await fetch(iconUrl, { method: 'HEAD' });
+                                    iconResults.push(`${icon.sizes}: ${iconResponse.ok ? '✓' : '✗'}`);
+                                } catch (e) {
+                                    iconResults.push(`${icon.sizes}: ✗ (${e.message})`);
+                                }
+                            }
+                            iconsTest.pass = iconResults.every(r => r.includes('✓'));
+                            iconsTest.details = `图标数量: ${icons.length}\n检查结果:\n${iconResults.join('\n')}`;
+                        } else {
+                            iconsTest.details = '✗ Manifest中没有配置图标';
+                        }
+                    }
+                }
+            } catch (error) {
+                iconsTest.details = `✗ 图标检查出错: ${error.message}`;
+            }
+            tests.push(iconsTest);
+            
+            // 测试6: PWA安装条件
+            let pwaInstallTest = {
+                title: 'PWA安装条件',
+                pass: false,
+                details: ''
+            };
+            
+            try {
+                const manifestLink = document.querySelector('link[rel="manifest"]');
+                if (manifestLink) {
+                    const manifestUrl = manifestLink.href;
+                    const response = await fetch(manifestUrl);
+                    if (response.ok) {
+                        const manifest = await response.json();
+                        const checks = [];
+                        
+                        // 检查必需字段
+                        checks.push(`name: ${manifest.name ? '✓' : '✗'}`);
+                        checks.push(`short_name: ${manifest.short_name ? '✓' : '✗'}`);
+                        checks.push(`start_url: ${manifest.start_url ? '✓' : '✗'}`);
+                        checks.push(`display: ${manifest.display ? '✓' : '✗'}`);
+                        checks.push(`icons: ${manifest.icons && manifest.icons.length > 0 ? '✓' : '✗'}`);
+                        
+                        // 检查192x192图标
+                        const has192Icon = manifest.icons && manifest.icons.some(i => i.sizes === '192x192');
+                        checks.push(`192x192图标: ${has192Icon ? '✓' : '✗'}`);
+                        
+                        pwaInstallTest.pass = checks.every(c => c.includes('✓'));
+                        pwaInstallTest.details = `检查结果:\n${checks.join('\n')}`;
+                    }
+                }
+            } catch (error) {
+                pwaInstallTest.details = `✗ PWA条件检查出错: ${error.message}`;
+            }
+            tests.push(pwaInstallTest);
+            
+            // 测试7: 浏览器信息
+            const browserTest = {
+                title: '浏览器信息',
+                pass: true,
+                details: `用户代理: ${navigator.userAgent}\n语言: ${navigator.language}\n平台: ${navigator.platform}`
+            };
+            tests.push(browserTest);
+            
+            // 渲染测试结果
+            tests.forEach(test => {
+                const testItem = document.createElement('div');
+                testItem.className = `test-item ${test.pass ? 'pass' : 'fail'}`;
+                testItem.innerHTML = `
+                    <div class="test-title">
+                        ${test.title}
+                        <span class="status ${test.pass ? 'pass' : 'fail'}">${test.pass ? '✓ 通过' : '✗ 失败'}</span>
+                    </div>
+                    <div class="test-result">${test.details}</div>
+                `;
+                testsContainer.appendChild(testItem);
+            });
+            
+            // 渲染总结
+            const passCount = tests.filter(t => t.pass).length;
+            const totalCount = tests.length;
+            summaryContainer.innerHTML = `
+                <p><strong>测试结果:</strong> ${passCount}/${totalCount} 项通过</p>
+                <p><strong>状态:</strong> ${passCount === totalCount ? '✓ 所有条件都满足，应该可以安装PWA' : '✗ 部分条件未满足，无法安装PWA'}</p>
+                ${passCount < totalCount ? '<p style="color: #f44336; margin-top: 10px;"><strong>请检查上方失败的测试项，修复后重新测试。</strong></p>' : ''}
+            `;
+        }
+        
+        // 页面加载时自动运行测试
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>
