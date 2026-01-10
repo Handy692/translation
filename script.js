@@ -1803,71 +1803,38 @@ async function endPractice() {
         logMessage(`开始使用${scoringSystem.system}系统评估翻译质量`, 'info');
         
         if (currentMode === 'sentence') {
-            // 分句模式：为每个句子生成评分和错误分析
-            for (let i = 0; i < sentences.length; i++) {
-                // 更新进度显示
-                updateLoadingProgress(i + 1, sentences.length);
-                
-                const translation = userTranslations[i] || '';
-                if (translation.trim()) {
-                    try {
-                        const evaluation = await scoringSystem.evaluate(sentences[i], translation);
-                        if (evaluation) {
-                            // 存储每个句子的完整评估结果
-                            const sentenceError = {
-                                sentenceIndex: i + 1,
-                                chinese: sentences[i],
-                                translation: translation,
-                                errors: evaluation.errors,
-                                sentenceScore: evaluation.score || 80 // 保存句子的单独分数
-                            };
-                            detailedErrors.push(sentenceError);
-                            
-                            // 如果有分数，添加到总分计算中
-                            if (evaluation.score !== undefined) {
-                                totalSentenceScores.push(evaluation.score);
-                            }
+            // 分句模式：合并所有句子和翻译为一个整体进行评估
+            const mergedOriginal = sentences.join(' ');
+            const mergedTranslation = userTranslations.filter(t => t && t.trim()).join(' ');
+            
+            if (mergedTranslation.trim()) {
+                try {
+                    // 使用合并后的内容进行整体评估
+                    const evaluation = await scoringSystem.evaluate(mergedOriginal, mergedTranslation);
+                    if (evaluation) {
+                        // 存储整体评估结果
+                        const mergedError = {
+                            sentenceIndex: 0,
+                            chinese: mergedOriginal,
+                            translation: mergedTranslation,
+                            errors: evaluation.errors,
+                            sentenceScore: evaluation.score || 80
+                        };
+                        detailedErrors.push(mergedError);
+                        
+                        // 如果有分数，使用整体分数
+                        if (evaluation.score !== undefined) {
+                            score = evaluation.score;
                         }
-                    } catch (error) {
-                        logMessage(`评估第${i+1}句时出错: ${error.message}`, 'error');
-                        // 即使单个句子评估失败，继续评估其他句子
                     }
+                } catch (error) {
+                    logMessage(`评估合并内容时出错: ${error.message}`, 'error');
                 }
             }
             
-            // 计算平均分
-            if (detailedErrors.length > 0) {
-                // 检查翻译的完整性（用户实际翻译了多少个句子）
-                const translatedSentencesCount = detailedErrors.length;
-                const totalSentencesCount = sentences.length;
-                const translationCompletion = translatedSentencesCount / totalSentencesCount;
-                
-                // 如果有直接的句子分数，使用这些分数计算平均分
-                if (totalSentenceScores.length > 0) {
-                    const totalScore = totalSentenceScores.reduce((sum, sentenceScore) => sum + sentenceScore, 0);
-                    let avgScore = Math.round(totalScore / totalSentenceScores.length);
-                    
-                    // 根据翻译完整性调整分数
-                    if (translationCompletion < 1) {
-                        // 不完整翻译最多只能得到80分
-                        avgScore = Math.min(80, Math.round(avgScore * translationCompletion + (1 - translationCompletion) * 40));
-                    }
-                    
-                    score = Math.max(0, Math.min(100, avgScore));
-                } else {
-                    // 回退到基于错误数量的评分
-                    const totalErrors = detailedErrors.reduce((count, item) => count + item.errors.length, 0);
-                    const avgErrorsPerSentence = totalErrors / detailedErrors.length;
-                    score = Math.max(0, Math.round(100 - avgErrorsPerSentence * 10));
-                    
-                    // 根据翻译完整性调整分数
-                    if (translationCompletion < 1) {
-                        score = Math.min(80, Math.round(score * translationCompletion + (1 - translationCompletion) * 40));
-                    }
-                }
-            } else {
-                // 如果没有任何翻译，给较低的分数
-                score = 30;
+            // 如果没有评估结果，使用默认分数
+            if (detailedErrors.length === 0) {
+                score = 70;
             }
         } else {
             // 整篇模式：对整个翻译进行评估
@@ -2014,8 +1981,12 @@ async function endPractice() {
         detailedErrors,
         currentMode,
         userTranslations,
+        sentences, // 保存句子数组，用于result页面显示
         aiEvaluationText
     };
+    console.log('保存评估结果 - sentences:', sentences);
+    console.log('保存评估结果 - userTranslations:', userTranslations);
+    console.log('保存评估结果 - currentMode:', currentMode);
     localStorage.setItem('evaluationResult', JSON.stringify(evaluationResult));
     
     // 导航到评估页面
@@ -2266,6 +2237,11 @@ function addHighlight(translation, errors) {
 
 // 显示结果
 function showResult(timeString, score, detailedErrors, aiEvaluationTextOverride = null) {
+    console.log('showResult调用 - currentMode:', currentMode);
+    console.log('showResult调用 - sentences:', sentences);
+    console.log('showResult调用 - userTranslations:', userTranslations);
+    console.log('showResult调用 - detailedErrors:', detailedErrors);
+    
     // 设置结果
     if (resultTime) resultTime.textContent = timeString;
     if (resultScore) resultScore.textContent = `${score}/100`;
@@ -2299,44 +2275,57 @@ function showResult(timeString, score, detailedErrors, aiEvaluationTextOverride 
 * 整体评价：翻译质量优秀，未检测到明显错误。
 * 建议：继续保持良好的翻译习惯，注意专业术语的准确性。`;
     } else {
-        // 按句子组织错误显示 - 遍历所有句子，确保显示所有翻译内容
-        const totalSentences = currentMode === 'sentence' ? sentences.length : 1;
+        // 分句模式和整篇模式使用相同的显示方式：合并成整段显示
+        const mergedError = detailedErrors.length > 0 ? detailedErrors[0] : null;
         
-        for (let i = 0; i < totalSentences; i++) {
-            const translation = userTranslations[i] || '';
-            if (!translation.trim()) continue;
-            
-            // 查找当前句子在 detailedErrors 中的评估结果
-            const errorItem = detailedErrors.find(item => 
-                currentMode === 'sentence' ? item.sentenceIndex === i + 1 : item.sentenceIndex === 0
-            );
-            
+        // 合并所有句子为一段原文
+        const mergedOriginal = sentences.join(' ');
+        
+        // 合并所有翻译为一段译文
+        const mergedTranslation = userTranslations.filter(t => t.trim()).join(' ');
+        
+        if (mergedTranslation.trim()) {
             if (grammarErrors) {
-                // 添加句子/文章标题
-                const sentenceHeader = document.createElement('div');
-                sentenceHeader.className = 'sentence-error-header';
-                if (currentMode === 'sentence') {
-                    sentenceHeader.innerHTML = `<strong>第${i + 1}句：</strong>${sentences[i]}`;
-                } else {
-                    sentenceHeader.innerHTML = `<strong>整篇文章：</strong>${passages[currentPassageIndex]}`;
-                }
-                grammarErrors.appendChild(sentenceHeader);
+                // 添加原文标题
+                const originalHeader = document.createElement('div');
+                originalHeader.className = 'sentence-error-header';
+                originalHeader.innerHTML = `<strong>原文：</strong>`;
+                grammarErrors.appendChild(originalHeader);
+                
+                // 添加原文内容
+                const originalText = document.createElement('div');
+                originalText.className = 'sentence-translation';
+                originalText.innerHTML = mergedOriginal;
+                grammarErrors.appendChild(originalText);
+                
+                // 添加翻译标题
+                const translationHeader = document.createElement('div');
+                translationHeader.className = 'sentence-error-header';
+                translationHeader.innerHTML = `<strong>你的翻译：</strong>`;
+                grammarErrors.appendChild(translationHeader);
                 
                 // 添加翻译内容
                 const translationText = document.createElement('div');
                 translationText.className = 'sentence-translation';
                 
-                if (errorItem && errorItem.errors.length > 0) {
+                if (mergedError && mergedError.errors && mergedError.errors.length > 0) {
                     // 有错误：添加高亮和错误列表
-                    const highlightedTranslation = addHighlight(translation, errorItem.errors);
+                    const highlightedTranslation = addHighlight(mergedTranslation, mergedError.errors);
                     highlightedTranslations.push(highlightedTranslation);
-                    translationText.innerHTML = `<em>你的翻译：${highlightedTranslation}</em>`;
+                    translationText.innerHTML = highlightedTranslation;
+                    grammarErrors.appendChild(translationText);
                     
                     // 添加错误列表
+                    const errorListTitle = document.createElement('div');
+                    errorListTitle.className = 'sentence-error-header';
+                    errorListTitle.style.marginTop = '15px';
+                    errorListTitle.innerHTML = `<strong>错误列表：</strong>`;
+                    grammarErrors.appendChild(errorListTitle);
+                    
                     const errorList = document.createElement('ul');
                     errorList.className = 'sentence-errors';
                     
-                    errorItem.errors.forEach(error => {
+                    mergedError.errors.forEach(error => {
                         const li = document.createElement('li');
                         li.innerHTML = `
                             <strong>${error.type}：</strong>${error.description}<br>
@@ -2346,24 +2335,15 @@ function showResult(timeString, score, detailedErrors, aiEvaluationTextOverride 
                         errorList.appendChild(li);
                     });
                     
-                    grammarErrors.appendChild(translationText);
                     grammarErrors.appendChild(errorList);
                 } else {
-                    // 无错误：显示翻译并标记为无错误
-                    highlightedTranslations.push(translation);
-                    translationText.innerHTML = `<em>你的翻译：${translation}</em>
+                    // 无错误
+                    highlightedTranslations.push(mergedTranslation);
+                    translationText.innerHTML = `${mergedTranslation}
                         <div class="no-error-indicator" style="color: #28a745; margin-top: 5px; font-size: 0.9em;">
                             ✓ 无明显错误
                         </div>`;
                     grammarErrors.appendChild(translationText);
-                }
-            } else {
-                // 如果grammarErrors不存在，仍然需要添加翻译
-                if (errorItem && errorItem.errors.length > 0) {
-                    const highlightedTranslation = addHighlight(translation, errorItem.errors);
-                    highlightedTranslations.push(highlightedTranslation);
-                } else {
-                    highlightedTranslations.push(translation);
                 }
             }
         }
@@ -3853,6 +3833,10 @@ function initResultPage() {
             // 先恢复当前模式和用户翻译
             currentMode = evaluationResult.currentMode;
             userTranslations = evaluationResult.userTranslations;
+            sentences = evaluationResult.sentences || []; // 恢复句子数组
+            console.log('恢复评估结果 - sentences:', sentences);
+            console.log('恢复评估结果 - userTranslations:', userTranslations);
+            console.log('恢复评估结果 - currentMode:', currentMode);
             
             // 然后显示结果（此时userTranslations已经被恢复）
             showResult(evaluationResult.timeString, evaluationResult.score, evaluationResult.detailedErrors, evaluationResult.aiEvaluationText);

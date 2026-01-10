@@ -27,9 +27,24 @@
         <section id="translation-history" class="active">
             <h2>翻译历史</h2>
             
+            <!-- 选项卡导航 -->
+            <div class="history-tabs">
+                <button class="history-tab active" data-tab="versions">
+                    <div class="tab-content">
+                        <span class="tab-title">翻译文章历史版本</span>
+                        <span class="tab-description">查看和管理翻译的历史版本记录</span>
+                    </div>
+                </button>
+                <button class="history-tab" data-tab="files">
+                    <div class="tab-content">
+                        <span class="tab-title">历史翻译文章</span>
+                        <span class="tab-description">查看和管理历史翻译文件</span>
+                    </div>
+                </button>
+            </div>
+            
             <!-- 翻译文章历史版本区域 -->
-            <div class="history-section">
-                <h3>翻译文章历史版本</h3>
+            <div class="history-section" id="versions-section">
                 <div class="history-controls">
                     <button id="export-history-btn" class="back-btn">导出历史数据</button>
                     <label for="import-history-file" class="back-btn" style="cursor: pointer; display: inline-block; margin-left: 10px;">导入历史数据</label>
@@ -40,17 +55,54 @@
                     <!-- 历史版本记录将通过JavaScript动态生成 -->
                     <div class="no-history-message">暂无翻译文章历史版本记录</div>
                 </div>
+                <!-- 分页导航区域 -->
+                <div class="pagination-container" id="versions-pagination-container">
+                    <div class="pagination-info">
+                        <span id="versions-page-info">第 1 页 / 共 1 页</span>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="versions-first-page-btn" title="第一页">⏮</button>
+                        <button class="pagination-btn" id="versions-prev-page-btn" title="上一页">◀</button>
+                        <div class="page-numbers" id="versions-page-numbers">
+                            <!-- 页码将通过JavaScript动态生成 -->
+                        </div>
+                        <button class="pagination-btn" id="versions-next-page-btn" title="下一页">▶</button>
+                        <button class="pagination-btn" id="versions-last-page-btn" title="最后一页">⏭</button>
+                        <div class="page-jump">
+                            <input type="number" id="versions-page-jump-input" class="page-jump-input" placeholder="页码" min="1">
+                            <button class="pagination-btn" id="versions-page-jump-btn" title="跳转">跳转</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- 历史翻译文章区域 -->
-            <div class="history-section">
-                <h3>历史翻译文章</h3>
+            <div class="history-section hidden" id="files-section">
                 <div class="history-controls">
                     <button id="clear-history-files-btn" class="back-btn" style="background-color: #ff4444;">清空所有历史文件</button>
                 </div>
                 <div id="history-files-list" class="history-list">
                     <!-- 历史文件记录将通过JavaScript动态生成 -->
                     <div class="no-history-message">暂无历史翻译文章记录</div>
+                </div>
+                <!-- 分页导航区域 -->
+                <div class="pagination-container" id="files-pagination-container">
+                    <div class="pagination-info">
+                        <span id="files-page-info">第 1 页 / 共 1 页</span>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="files-first-page-btn" title="第一页">⏮</button>
+                        <button class="pagination-btn" id="files-prev-page-btn" title="上一页">◀</button>
+                        <div class="page-numbers" id="files-page-numbers">
+                            <!-- 页码将通过JavaScript动态生成 -->
+                        </div>
+                        <button class="pagination-btn" id="files-next-page-btn" title="下一页">▶</button>
+                        <button class="pagination-btn" id="files-last-page-btn" title="最后一页">⏭</button>
+                        <div class="page-jump">
+                            <input type="number" id="files-page-jump-input" class="page-jump-input" placeholder="页码" min="1">
+                            <button class="pagination-btn" id="files-page-jump-btn" title="跳转">跳转</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -130,6 +182,16 @@
             initTranslationHistory();
         });
 
+        // 分页相关变量 - 历史版本
+        const VERSIONS_PER_PAGE = 6;
+        let versionsCurrentPage = 1;
+        let versionsTotalPages = 1;
+        
+        // 分页相关变量 - 历史文件
+        const FILES_PER_PAGE = 6;
+        let filesCurrentPage = 1;
+        let filesTotalPages = 1;
+
         // 初始化翻译历史页面
         function initTranslationHistory() {
             // 加载翻译历史数据
@@ -137,6 +199,96 @@
             
             // 添加事件监听器
             setupHistoryEventListeners();
+            
+            // 初始化选项卡
+            initTabs();
+            
+            // 初始化分页事件监听器
+            initPaginationEventListeners();
+        }
+
+        // 初始化分页事件监听器
+        function initPaginationEventListeners() {
+            // 历史版本分页事件
+            document.getElementById('versions-first-page-btn').addEventListener('click', () => goToVersionsPage(1));
+            document.getElementById('versions-prev-page-btn').addEventListener('click', () => goToVersionsPage(versionsCurrentPage - 1));
+            document.getElementById('versions-next-page-btn').addEventListener('click', () => goToVersionsPage(versionsCurrentPage + 1));
+            document.getElementById('versions-last-page-btn').addEventListener('click', () => goToVersionsPage(versionsTotalPages));
+            
+            const versionsPageJumpInput = document.getElementById('versions-page-jump-input');
+            const versionsPageJumpBtn = document.getElementById('versions-page-jump-btn');
+            
+            versionsPageJumpBtn.addEventListener('click', () => {
+                const pageNumber = parseInt(versionsPageJumpInput.value);
+                if (pageNumber && pageNumber >= 1 && pageNumber <= versionsTotalPages) {
+                    goToVersionsPage(pageNumber);
+                    versionsPageJumpInput.value = '';
+                } else {
+                    alert('请输入有效的页码！');
+                }
+            });
+            
+            versionsPageJumpInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    versionsPageJumpBtn.click();
+                }
+            });
+            
+            // 历史文件分页事件
+            document.getElementById('files-first-page-btn').addEventListener('click', () => goToFilesPage(1));
+            document.getElementById('files-prev-page-btn').addEventListener('click', () => goToFilesPage(filesCurrentPage - 1));
+            document.getElementById('files-next-page-btn').addEventListener('click', () => goToFilesPage(filesCurrentPage + 1));
+            document.getElementById('files-last-page-btn').addEventListener('click', () => goToFilesPage(filesTotalPages));
+            
+            const filesPageJumpInput = document.getElementById('files-page-jump-input');
+            const filesPageJumpBtn = document.getElementById('files-page-jump-btn');
+            
+            filesPageJumpBtn.addEventListener('click', () => {
+                const pageNumber = parseInt(filesPageJumpInput.value);
+                if (pageNumber && pageNumber >= 1 && pageNumber <= filesTotalPages) {
+                    goToFilesPage(pageNumber);
+                    filesPageJumpInput.value = '';
+                } else {
+                    alert('请输入有效的页码！');
+                }
+            });
+            
+            filesPageJumpInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    filesPageJumpBtn.click();
+                }
+            });
+        }
+
+        // 初始化选项卡
+        function initTabs() {
+            const tabs = document.querySelectorAll('.history-tab');
+            const versionsSection = document.getElementById('versions-section');
+            const filesSection = document.getElementById('files-section');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 移除所有选项卡的active类
+                    tabs.forEach(t => t.classList.remove('active'));
+                    
+                    // 为当前选项卡添加active类
+                    this.classList.add('active');
+                    
+                    // 获取选项卡类型
+                    const tabType = this.getAttribute('data-tab');
+                    
+                    // 切换内容区域
+                    if (tabType === 'versions') {
+                        versionsSection.classList.remove('hidden');
+                        filesSection.classList.add('hidden');
+                        loadHistoryVersions();
+                    } else {
+                        versionsSection.classList.add('hidden');
+                        filesSection.classList.remove('hidden');
+                        loadHistoryFiles();
+                    }
+                });
+            });
         }
 
         // 加载翻译历史数据
@@ -153,29 +305,166 @@
             const historyList = document.getElementById('history-versions-list');
             const versions = TranslationHistory.getHistoryVersions();
             
+            historyList.innerHTML = '';
+            
             if (versions.length === 0) {
                 historyList.innerHTML = '<div class="no-history-message">暂无翻译文章历史版本记录</div>';
+                updateVersionsPaginationControls();
                 return;
             }
             
-            historyList.innerHTML = versions.map(version => `
-                <div class="history-item">
+            // 计算总页数
+            versionsTotalPages = Math.ceil(versions.length / VERSIONS_PER_PAGE);
+            
+            // 确保当前页码在有效范围内
+            if (versionsCurrentPage > versionsTotalPages) {
+                versionsCurrentPage = versionsTotalPages;
+            }
+            if (versionsCurrentPage < 1) {
+                versionsCurrentPage = 1;
+            }
+            
+            // 计算当前页的记录索引范围
+            const startIndex = (versionsCurrentPage - 1) * VERSIONS_PER_PAGE;
+            const endIndex = Math.min(startIndex + VERSIONS_PER_PAGE, versions.length);
+            const currentPageVersions = versions.slice(startIndex, endIndex);
+            
+            // 按时间倒序排列（最新的在前面）
+            currentPageVersions.reverse().forEach((version, index) => {
+                const actualIndex = startIndex + (currentPageVersions.length - 1 - index);
+                const versionItem = document.createElement('div');
+                versionItem.className = 'history-item';
+                
+                const timestamp = new Date(version.timestamp).toLocaleString('zh-CN');
+                
+                versionItem.innerHTML = `
                     <div class="history-item-header">
-                        <h4>${version.filename || '未命名文件'}</h4>
-                        <span class="history-item-date">${new Date(version.timestamp).toLocaleString()}</span>
+                        <h3>${version.filename || '未命名文件'}</h3>
+                        <span class="history-timestamp">${timestamp}</span>
                     </div>
                     <div class="history-item-content">
                         <p class="history-item-description">${version.description || '无描述'}</p>
                         ${version.passageContent ? `<div class="history-item-passage"><strong>原文：</strong><p>${version.passageContent.substring(0, 200)}${version.passageContent.length > 200 ? '...' : ''}</p></div>` : ''}
                         ${version.score !== null ? `<div class="history-item-score"><strong>评分：</strong>${version.score}/100</div>` : ''}
                         ${version.aiEvaluation ? `<div class="history-item-ai-evaluation"><strong>AI评语：</strong><p>${version.aiEvaluation.substring(0, 300)}${version.aiEvaluation.length > 300 ? '...' : ''}</p></div>` : ''}
-                        <div class="history-item-actions">
-                            <button class="back-btn" onclick="loadHistoryVersion('${version.id}')">查看详情</button>
-                            <button class="back-btn" style="background-color: #ff4444;" onclick="deleteHistoryVersion('${version.id}')">删除</button>
-                        </div>
                     </div>
-                </div>
-            `).join('');
+                    <div class="history-item-actions">
+                        <button class="back-btn" onclick="loadHistoryVersion('${version.id}')">查看详情</button>
+                        <button class="back-btn" style="background-color: #ff4444;" onclick="deleteHistoryVersion('${version.id}')">删除</button>
+                    </div>
+                `;
+                
+                historyList.appendChild(versionItem);
+            });
+            
+            // 更新分页控件
+            updateVersionsPaginationControls();
+        }
+        
+        // 更新历史版本分页控件
+        function updateVersionsPaginationControls() {
+            const pageInfo = document.getElementById('versions-page-info');
+            const pageNumbers = document.getElementById('versions-page-numbers');
+            const firstPageBtn = document.getElementById('versions-first-page-btn');
+            const prevPageBtn = document.getElementById('versions-prev-page-btn');
+            const nextPageBtn = document.getElementById('versions-next-page-btn');
+            const lastPageBtn = document.getElementById('versions-last-page-btn');
+            const pageJumpInput = document.getElementById('versions-page-jump-input');
+            const versions = TranslationHistory.getHistoryVersions();
+            
+            // 更新页码信息
+            if (versions.length === 0) {
+                pageInfo.textContent = '第 0 页 / 共 0 页';
+                pageJumpInput.disabled = true;
+                pageJumpInput.placeholder = '无页码';
+            } else {
+                pageInfo.textContent = `第 ${versionsCurrentPage} 页 / 共 ${versionsTotalPages} 页`;
+                pageJumpInput.disabled = false;
+                pageJumpInput.placeholder = '页码';
+                pageJumpInput.max = versionsTotalPages;
+            }
+            
+            // 更新按钮状态
+            firstPageBtn.disabled = versionsCurrentPage <= 1 || versions.length === 0;
+            prevPageBtn.disabled = versionsCurrentPage <= 1 || versions.length === 0;
+            nextPageBtn.disabled = versionsCurrentPage >= versionsTotalPages || versions.length === 0;
+            lastPageBtn.disabled = versionsCurrentPage >= versionsTotalPages || versions.length === 0;
+            
+            // 生成页码按钮
+            pageNumbers.innerHTML = '';
+            
+            if (versions.length === 0) {
+                return;
+            }
+            
+            // 计算显示的页码范围
+            let startPage = Math.max(1, versionsCurrentPage - 2);
+            let endPage = Math.min(versionsTotalPages, versionsCurrentPage + 2);
+            
+            // 如果总页数较少，显示所有页码
+            if (versionsTotalPages <= 5) {
+                startPage = 1;
+                endPage = versionsTotalPages;
+            } else {
+                // 确保至少显示5个页码
+                if (endPage - startPage < 4) {
+                    if (startPage === 1) {
+                        endPage = Math.min(5, versionsTotalPages);
+                    } else if (endPage === versionsTotalPages) {
+                        startPage = Math.max(1, versionsTotalPages - 4);
+                    }
+                }
+            }
+            
+            // 添加第一页和省略号
+            if (startPage > 1) {
+                const firstPageNum = document.createElement('button');
+                firstPageNum.className = 'page-number';
+                firstPageNum.textContent = '1';
+                firstPageNum.addEventListener('click', () => goToVersionsPage(1));
+                pageNumbers.appendChild(firstPageNum);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '10px 5px';
+                    ellipsis.style.color = 'var(--text-secondary)';
+                    pageNumbers.appendChild(ellipsis);
+                }
+            }
+            
+            // 添加页码按钮
+            for (let i = startPage; i <= endPage; i++) {
+                const pageNum = document.createElement('button');
+                pageNum.className = `page-number ${i === versionsCurrentPage ? 'active' : ''}`;
+                pageNum.textContent = i;
+                pageNum.addEventListener('click', () => goToVersionsPage(i));
+                pageNumbers.appendChild(pageNum);
+            }
+            
+            // 添加最后一页和省略号
+            if (endPage < versionsTotalPages) {
+                if (endPage < versionsTotalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '10px 5px';
+                    ellipsis.style.color = 'var(--text-secondary)';
+                    pageNumbers.appendChild(ellipsis);
+                }
+                
+                const lastPageNum = document.createElement('button');
+                lastPageNum.className = 'page-number';
+                lastPageNum.textContent = versionsTotalPages;
+                lastPageNum.addEventListener('click', () => goToVersionsPage(versionsTotalPages));
+                pageNumbers.appendChild(lastPageNum);
+            }
+        }
+        
+        // 跳转到历史版本指定页面
+        function goToVersionsPage(page) {
+            if (page < 1 || page > versionsTotalPages) return;
+            versionsCurrentPage = page;
+            loadHistoryVersions();
         }
 
         // 加载历史翻译文章
@@ -183,26 +472,163 @@
             const filesList = document.getElementById('history-files-list');
             const files = TranslationHistory.getHistoryFiles();
             
+            filesList.innerHTML = '';
+            
             if (files.length === 0) {
                 filesList.innerHTML = '<div class="no-history-message">暂无历史翻译文章记录</div>';
+                updateFilesPaginationControls();
                 return;
             }
             
-            filesList.innerHTML = files.map(file => `
-                <div class="history-item">
+            // 计算总页数
+            filesTotalPages = Math.ceil(files.length / FILES_PER_PAGE);
+            
+            // 确保当前页码在有效范围内
+            if (filesCurrentPage > filesTotalPages) {
+                filesCurrentPage = filesTotalPages;
+            }
+            if (filesCurrentPage < 1) {
+                filesCurrentPage = 1;
+            }
+            
+            // 计算当前页的记录索引范围
+            const startIndex = (filesCurrentPage - 1) * FILES_PER_PAGE;
+            const endIndex = Math.min(startIndex + FILES_PER_PAGE, files.length);
+            const currentPageFiles = files.slice(startIndex, endIndex);
+            
+            // 按时间倒序排列（最新的在前面）
+            currentPageFiles.reverse().forEach((file, index) => {
+                const actualIndex = startIndex + (currentPageFiles.length - 1 - index);
+                const fileItem = document.createElement('div');
+                fileItem.className = 'history-item';
+                
+                const timestamp = new Date(file.timestamp).toLocaleString('zh-CN');
+                
+                fileItem.innerHTML = `
                     <div class="history-item-header">
-                        <h4>${file.filename || '未命名文件'}</h4>
-                        <span class="history-item-date">${new Date(file.timestamp).toLocaleString()}</span>
+                        <h3>${file.filename || '未命名文件'}</h3>
+                        <span class="history-timestamp">${timestamp}</span>
                     </div>
                     <div class="history-item-content">
                         <p class="history-item-description">${file.description || '无描述'}</p>
-                        <div class="history-item-actions">
-                            <button class="back-btn" onclick="reloadHistoryFile('${file.id}')">重新加载</button>
-                            <button class="back-btn" style="background-color: #ff4444;" onclick="deleteHistoryFile('${file.id}')">删除</button>
-                        </div>
                     </div>
-                </div>
-            `).join('');
+                    <div class="history-item-actions">
+                        <button class="back-btn" onclick="reloadHistoryFile('${file.id}')">重新加载</button>
+                        <button class="back-btn" style="background-color: #ff4444;" onclick="deleteHistoryFile('${file.id}')">删除</button>
+                    </div>
+                `;
+                
+                filesList.appendChild(fileItem);
+            });
+            
+            // 更新分页控件
+            updateFilesPaginationControls();
+        }
+        
+        // 更新历史文件分页控件
+        function updateFilesPaginationControls() {
+            const pageInfo = document.getElementById('files-page-info');
+            const pageNumbers = document.getElementById('files-page-numbers');
+            const firstPageBtn = document.getElementById('files-first-page-btn');
+            const prevPageBtn = document.getElementById('files-prev-page-btn');
+            const nextPageBtn = document.getElementById('files-next-page-btn');
+            const lastPageBtn = document.getElementById('files-last-page-btn');
+            const pageJumpInput = document.getElementById('files-page-jump-input');
+            const files = TranslationHistory.getHistoryFiles();
+            
+            // 更新页码信息
+            if (files.length === 0) {
+                pageInfo.textContent = '第 0 页 / 共 0 页';
+                pageJumpInput.disabled = true;
+                pageJumpInput.placeholder = '无页码';
+            } else {
+                pageInfo.textContent = `第 ${filesCurrentPage} 页 / 共 ${filesTotalPages} 页`;
+                pageJumpInput.disabled = false;
+                pageJumpInput.placeholder = '页码';
+                pageJumpInput.max = filesTotalPages;
+            }
+            
+            // 更新按钮状态
+            firstPageBtn.disabled = filesCurrentPage <= 1 || files.length === 0;
+            prevPageBtn.disabled = filesCurrentPage <= 1 || files.length === 0;
+            nextPageBtn.disabled = filesCurrentPage >= filesTotalPages || files.length === 0;
+            lastPageBtn.disabled = filesCurrentPage >= filesTotalPages || files.length === 0;
+            
+            // 生成页码按钮
+            pageNumbers.innerHTML = '';
+            
+            if (files.length === 0) {
+                return;
+            }
+            
+            // 计算显示的页码范围
+            let startPage = Math.max(1, filesCurrentPage - 2);
+            let endPage = Math.min(filesTotalPages, filesCurrentPage + 2);
+            
+            // 如果总页数较少，显示所有页码
+            if (filesTotalPages <= 5) {
+                startPage = 1;
+                endPage = filesTotalPages;
+            } else {
+                // 确保至少显示5个页码
+                if (endPage - startPage < 4) {
+                    if (startPage === 1) {
+                        endPage = Math.min(5, filesTotalPages);
+                    } else if (endPage === filesTotalPages) {
+                        startPage = Math.max(1, filesTotalPages - 4);
+                    }
+                }
+            }
+            
+            // 添加第一页和省略号
+            if (startPage > 1) {
+                const firstPageNum = document.createElement('button');
+                firstPageNum.className = 'page-number';
+                firstPageNum.textContent = '1';
+                firstPageNum.addEventListener('click', () => goToFilesPage(1));
+                pageNumbers.appendChild(firstPageNum);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '10px 5px';
+                    ellipsis.style.color = 'var(--text-secondary)';
+                    pageNumbers.appendChild(ellipsis);
+                }
+            }
+            
+            // 添加页码按钮
+            for (let i = startPage; i <= endPage; i++) {
+                const pageNum = document.createElement('button');
+                pageNum.className = `page-number ${i === filesCurrentPage ? 'active' : ''}`;
+                pageNum.textContent = i;
+                pageNum.addEventListener('click', () => goToFilesPage(i));
+                pageNumbers.appendChild(pageNum);
+            }
+            
+            // 添加最后一页和省略号
+            if (endPage < filesTotalPages) {
+                if (endPage < filesTotalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '10px 5px';
+                    ellipsis.style.color = 'var(--text-secondary)';
+                    pageNumbers.appendChild(ellipsis);
+                }
+                
+                const lastPageNum = document.createElement('button');
+                lastPageNum.className = 'page-number';
+                lastPageNum.textContent = filesTotalPages;
+                lastPageNum.addEventListener('click', () => goToFilesPage(filesTotalPages));
+                pageNumbers.appendChild(lastPageNum);
+            }
+        }
+        
+        // 跳转到历史文件指定页面
+        function goToFilesPage(page) {
+            if (page < 1 || page > filesTotalPages) return;
+            filesCurrentPage = page;
+            loadHistoryFiles();
         }
 
         // 设置历史事件监听器
@@ -378,5 +804,8 @@
             });
         }
     </script>
+    
+    <!-- 帮助按钮 -->
+    <a href="about_me.html" class="help-btn" title="关于我">?</a>
 </body>
 </html>

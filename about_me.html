@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我 - 英语翻译练习网站</title>
+    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>英语翻译练习</h1>
+            </div>
+            <div class="header-right">
+                <a href="index.html" class="home-btn flat-btn" title="返回主页">🏠</a>
+                <a href="wordbook.html" id="wordbook-icon" class="wordbook-icon" title="单词本">📚</a>
+                <a href="translation-history.html" id="history-icon" class="history-btn flat-btn" title="翻译历史">📜</a>
+                <button id="install-app-btn" class="install-btn flat-btn hidden" title="安装应用">📥</button>
+            </div>
+        </header>
+
+        <!-- 关于我页面 -->
+        <section id="about-me" class="active">
+            <h2>关于我</h2>
+            
+            <!-- 选项卡导航 -->
+            <div class="about-tabs">
+                <button class="about-tab active" data-tab="about">
+                    <div class="tab-content">
+                        <span class="tab-title">关于我</span>
+                        <span class="tab-description">了解本项目的详细信息</span>
+                    </div>
+                </button>
+                <button class="about-tab" data-tab="tutorial">
+                    <div class="tab-content">
+                        <span class="tab-title">使用教程</span>
+                        <span class="tab-description">学习如何使用本应用</span>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- 关于我区域 -->
+            <div class="about-section" id="about-section">
+                <div class="about-content">
+                    <h3>项目简介</h3>
+                    <p>英语翻译练习是一个纯前端实现的Web应用，旨在帮助用户提高英语翻译能力。应用支持上传Word文档进行练习，提供分句练习和整篇练习两种模式，并集成AI评价功能对翻译结果进行智能评估。</p>
+                    
+                    <h3>主要功能特性</h3>
+                    <h4>1. 文件上传</h4>
+                    <ul>
+                        <li>支持上传Word文档（.docx格式）</li>
+                        <li>自动解析文档内容</li>
+                        <li>文档预览功能</li>
+                    </ul>
+                    
+                    <h4>2. 文档选择</h4>
+                    <ul>
+                        <li>显示已上传的文档列表</li>
+                        <li>支持选择要练习的文档</li>
+                        <li>文档信息展示</li>
+                    </ul>
+                    
+                    <h4>3. 练习模式</h4>
+                    <ul>
+                        <li><strong>分句练习模式</strong>：逐句翻译，支持上一句/下一句导航</li>
+                        <li><strong>整篇练习模式</strong>：一次性完成整篇文章翻译</li>
+                    </ul>
+                    
+                    <h4>4. AI评价系统</h4>
+                    <ul>
+                        <li>智能翻译质量评估</li>
+                        <li>语法和用词建议</li>
+                        <li>翻译准确性评分</li>
+                        <li>详细的内容校对</li>
+                    </ul>
+                    
+                    <h4>5. 结果展示</h4>
+                    <ul>
+                        <li>原文与译文对照显示</li>
+                        <li>AI评价结果展示</li>
+                        <li>PDF生成和下载功能</li>
+                        <li>排除单词详情的优化PDF布局</li>
+                    </ul>
+                    
+                    <h4>6. 翻译历史</h4>
+                    <ul>
+                        <li>选项卡切换显示历史版本和历史文件</li>
+                        <li>分页显示（每页6条记录）</li>
+                        <li>支持查看历史练习结果</li>
+                        <li>导出/导入历史数据功能</li>
+                    </ul>
+                    
+                    <h4>7. 单词本功能</h4>
+                    <ul>
+                        <li>收集练习中遇到的生词</li>
+                        <li>分页显示（每页9个单词）</li>
+                        <li>页面跳转功能</li>
+                        <li>单词详情查看</li>
+                    </ul>
+                    
+                    <h4>8. PWA支持</h4>
+                    <ul>
+                        <li>可安装为独立应用</li>
+                        <li>离线功能支持</li>
+                        <li>跨平台兼容（支持Microsoft Edge等浏览器）</li>
+                        <li>自定义应用图标</li>
+                    </ul>
+                    
+                    <h3>技术栈</h3>
+                    <ul>
+                        <li><strong>前端框架</strong>：纯HTML5 + CSS3 + JavaScript</li>
+                        <li><strong>样式</strong>：CSS3（Flexbox + Grid布局）</li>
+                        <li><strong>PDF生成</strong>：html2canvas.js</li>
+                        <li><strong>翻译API</strong>：MyMemory Translation API</li>
+                        <li><strong>PWA</strong>：Service Worker + Web App Manifest</li>
+                        <li><strong>图标</strong>：多尺寸PNG图标（72x72到512x512）</li>
+                    </ul>
+                    
+                    <h3>使用说明</h3>
+                    <h4>基本流程</h4>
+                    <ol>
+                        <li><strong>上传文档</strong><br>点击"上传文件"按钮，选择Word文档（.docx格式），等待文档解析完成</li>
+                        <li><strong>选择文档</strong><br>在文档列表中选择要练习的文档，查看文档预览信息</li>
+                        <li><strong>选择练习模式</strong><br>分句练习：适合逐句精练<br>整篇练习：适合整体翻译练习</li>
+                        <li><strong>开始练习</strong><br>根据练习模式输入翻译，分句模式可使用"上一句"/"下一句"导航，完成后点击"提交评价"</li>
+                        <li><strong>查看结果</strong><br>查看AI评价结果，浏览原文与译文对照，下载PDF存档</li>
+                        <li><strong>管理单词本</strong><br>查看收集的生词，使用分页导航浏览，输入页码快速跳转</li>
+                    </ol>
+                    
+                    <h3>PWA安装指南</h3>
+                    <h4>在Microsoft Edge中安装</h4>
+                    <ol>
+                        <li>在Edge浏览器中打开应用</li>
+                        <li>点击地址栏右侧的"安装应用"图标（📥）</li>
+                        <li>在弹出的对话框中点击"安装"</li>
+                        <li>应用将作为独立应用安装到系统中</li>
+                    </ol>
+                    
+                    <h4>安装后的功能</h4>
+                    <ul>
+                        <li>作为独立窗口运行</li>
+                        <li>添加到开始菜单</li>
+                        <li>支持离线访问</li>
+                        <li>自定义应用图标</li>
+                    </ul>
+                    
+                    <h3>浏览器兼容性</h3>
+                    <ul>
+                        <li>Microsoft Edge（推荐）✅</li>
+                        <li>Google Chrome ✅</li>
+                        <li>Mozilla Firefox ✅</li>
+                        <li>Safari ✅</li>
+                    </ul>
+                    
+                    <h3>注意事项</h3>
+                    <ol>
+                        <li><strong>文件格式</strong>：目前仅支持.docx格式的Word文档</li>
+                        <li><strong>网络连接</strong>：AI评价功能需要网络连接</li>
+                        <li><strong>本地存储</strong>：使用LocalStorage保存数据，清除浏览器缓存会丢失数据</li>
+                        <li><strong>PWA功能</strong>：需要HTTPS或localhost环境才能正常使用PWA功能</li>
+                    </ol>
+                    
+                    <h3>版本历史</h3>
+                    <h4>v3.1（当前版本）</h4>
+                    <ul>
+                        <li>✨ 优化分句翻译输出格式，原文和翻译合并为整段显示</li>
+                        <li>✨ 改进分句模式AI评价机制，采用整体评价而非逐句评价</li>
+                        <li>✨ 统一分句模式和整篇模式的结果展示格式</li>
+                        <li>🐛 修复分句模式结果页面显示问题</li>
+                        <li>✨ 重新设计翻译历史页面布局，采用选项卡切换形式</li>
+                        <li>✨ 添加分页功能，每页显示6条历史记录</li>
+                        <li>✨ 优化历史页面视觉效果，选中选项卡显示轮廓框</li>
+                    </ul>
+                    
+                    <h4>v3.0</h4>
+                    <ul>
+                        <li>✨ 新增PWA支持，可安装为独立应用</li>
+                        <li>✨ 添加自定义应用图标</li>
+                        <li>✨ 优化PDF生成功能，排除单词详情部分</li>
+                        <li>✨ 改进分页导航，支持页面跳转</li>
+                        <li>🐛 修复文件上传导航问题</li>
+                        <li>🐛 修复PDF布局问题</li>
+                        <li>📱 响应式设计优化</li>
+                    </ul>
+                    
+                    <h4>v2.0</h4>
+                    <ul>
+                        <li>✨ 新增分句练习模式</li>
+                        <li>✨ 新增整篇练习模式</li>
+                        <li>✨ 集成AI评价功能</li>
+                        <li>✨ 添加翻译历史记录</li>
+                        <li>✨ 实现单词本功能</li>
+                    </ul>
+                    
+                    <h4>v1.0</h4>
+                    <ul>
+                        <li>🎉 初始版本发布</li>
+                        <li>✨ 基础文件上传功能</li>
+                        <li>✨ 文档选择功能</li>
+                        <li>✨ 基础翻译功能</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 使用教程区域 -->
+            <div class="about-section hidden" id="tutorial-section">
+                <div class="about-content">
+                    <h3>使用教程</h3>
+                    <p>使用教程内容正在准备中，敬请期待...</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 模式切换按钮 -->
+    <button id="mode-toggle-btn" class="mode-toggle-btn" title="切换黑暗/白天模式" aria-label="切换黑暗/白天模式" aria-pressed="false">🌙</button>
+    
+    <!-- 主题切换按钮 -->
+    <button id="theme-toggle-btn" class="theme-toggle-btn" title="更换主题" aria-label="更换主题" aria-expanded="false">🎨</button>
+    
+    <!-- 主题选择面板 -->
+    <div id="theme-panel" class="theme-panel hidden" role="menu" aria-labelledby="theme-toggle-btn">
+        <div class="theme-panel-header">
+            <h3>选择主题</h3>
+            <button id="close-theme-panel" class="close-btn" aria-label="关闭主题面板">&times;</button>
+        </div>
+        <div class="theme-colors">
+            <h4>主题颜色</h4>
+            <div class="color-options">
+                <button class="color-option" data-color="blue" style="background-color: #2196F3" title="蓝色主题" aria-pressed="false"></button>
+                <button class="color-option" data-color="red" style="background-color: #F44336" title="红色主题" aria-pressed="false"></button>
+                <button class="color-option" data-color="yellow" style="background-color: #FFC107" title="黄色主题" aria-pressed="false"></button>
+                <button class="color-option" data-color="green" style="background-color: #4CAF50" title="绿色主题" aria-pressed="false"></button>
+                <button class="color-option" data-color="purple" style="background-color: #9C27B0" title="紫色主题" aria-pressed="false"></button>
+            </div>
+        </div>
+    </div>
+
+    <button id="back-btn" class="help-btn" title="返回">←</button>
+
+    <script src="script.js?v=4"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.about-tab');
+            const sections = document.querySelectorAll('.about-section');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    tabs.forEach(t => t.classList.remove('active'));
+                    sections.forEach(s => s.classList.add('hidden'));
+                    
+                    this.classList.add('active');
+                    document.getElementById(tabId + '-section').classList.remove('hidden');
+                });
+            });
+
+            const backBtn = document.getElementById('back-btn');
+            backBtn.addEventListener('click', function() {
+                if (document.referrer) {
+                    window.history.back();
+                } else {
+                    window.location.href = 'index.html';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
