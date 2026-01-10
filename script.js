@@ -219,7 +219,8 @@ let appState = {
     shouldShowMenu: false,
     selectedPassages: [],
     userTranslations: [],
-    currentSentenceIndex: 0
+    currentSentenceIndex: 0,
+    currentView: 'upload-section'
 };
 
 // 保存状态到localStorage
@@ -247,6 +248,25 @@ function loadAppState() {
         userTranslations = appState.userTranslations;
         currentSentenceIndex = appState.currentSentenceIndex;
         currentMode = appState.currentMode || '';
+        
+        // 恢复当前视图
+        if (appState.currentView) {
+            currentView = appState.currentView;
+            // 延迟恢复视图，确保 DOM 已加载
+            setTimeout(() => {
+                const section = document.getElementById(currentView);
+                if (section) {
+                    // 直接操作 DOM 来恢复视图，避免调用 showSection 导致循环
+                    const allSections = document.querySelectorAll('section');
+                    allSections.forEach(s => {
+                        s.classList.remove('active');
+                        s.classList.add('hidden');
+                    });
+                    section.classList.remove('hidden');
+                    section.classList.add('active');
+                }
+            }, 100);
+        }
     }
 }
 
@@ -2481,6 +2501,8 @@ function showSection(section) {
     
     // 保存当前视图
     currentView = section.id;
+    appState.currentView = section.id;
+    saveAppState();
 }
 
 // 文本选择事件处理
