@@ -1,4 +1,4 @@
-const CACHE_NAME = 'translation-practice-v2';
+const CACHE_NAME = 'translation-practice-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -74,7 +74,9 @@ self.addEventListener('fetch', event => {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
               .then(cache => {
-                cache.put(event.request, responseToCache);
+                if (event.request.url.startsWith('http://') || event.request.url.startsWith('https://')) {
+                  cache.put(event.request, responseToCache);
+                }
               });
             return response;
           }
