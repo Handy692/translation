@@ -248,25 +248,7 @@ function loadAppState() {
         userTranslations = appState.userTranslations;
         currentSentenceIndex = appState.currentSentenceIndex;
         currentMode = appState.currentMode || '';
-        
-        // 恢复当前视图
-        if (appState.currentView) {
-            currentView = appState.currentView;
-            // 延迟恢复视图，确保 DOM 已加载
-            setTimeout(() => {
-                const section = document.getElementById(currentView);
-                if (section) {
-                    // 直接操作 DOM 来恢复视图，避免调用 showSection 导致循环
-                    const allSections = document.querySelectorAll('section');
-                    allSections.forEach(s => {
-                        s.classList.remove('active');
-                        s.classList.add('hidden');
-                    });
-                    section.classList.remove('hidden');
-                    section.classList.add('active');
-                }
-            }, 100);
-        }
+        currentView = appState.currentView || 'upload-section';
     }
 }
 
@@ -3967,6 +3949,26 @@ window.addEventListener('DOMContentLoaded', function() {
     initEventListeners();
     loadApiKey(); // 加载已保存的API密钥
     initWordbook(); // 初始化单词本功能
+    
+    // 恢复当前视图（仅对 index.html）
+    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+        console.log('恢复视图，currentView:', currentView);
+        const section = document.getElementById(currentView);
+        console.log('找到的 section 元素:', section);
+        if (section) {
+            const allSections = document.querySelectorAll('section');
+            console.log('所有 sections 数量:', allSections.length);
+            allSections.forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('hidden');
+            });
+            section.classList.remove('hidden');
+            section.classList.add('active');
+            console.log('视图恢复完成');
+        } else {
+            console.log('未找到 section 元素，currentView:', currentView);
+        }
+    }
 });
 
 // 检查是否需要重新加载历史文件
