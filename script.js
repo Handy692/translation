@@ -385,7 +385,7 @@ function showPassageSelection() {
     saveAppState();
     
     // 如果当前页面是上传页面，则跳转到文档选择页面
-    if (window.location.pathname.endsWith('1_upload.html')) {
+    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
         if (window.PageTransition) {
             PageTransition.transitionTo('2_document_selection.html');
         } else {
@@ -2465,9 +2465,9 @@ function uploadNewFile() {
         window.location.pathname.endsWith('4_sentence_practice.html') || 
         window.location.pathname.endsWith('4_passage_practice.html')) {
         if (window.PageTransition) {
-            PageTransition.transitionTo('1_upload.html');
+            PageTransition.transitionTo('index.html');
         } else {
-            window.location.href = '1_upload.html';
+            window.location.href = 'index.html';
         }
     } else {
         // 显示上传区域
@@ -3778,7 +3778,7 @@ function initDocumentSelectionPage() {
     const backToUploadBtn = document.getElementById('back-to-upload');
     if (backToUploadBtn) {
         backToUploadBtn.addEventListener('click', () => {
-            window.location.href = '1_upload.html';
+            window.location.href = 'index.html';
         });
     }
 }

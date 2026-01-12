@@ -2,7 +2,6 @@ const CACHE_NAME = 'translation-practice-v3';
 const urlsToCache = [
   './',
   './index.html',
-  './1_upload.html',
   './2_document_selection.html',
   './3_mode_selection.html',
   './4_sentence_practice.html',
